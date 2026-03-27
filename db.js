@@ -1,0 +1,58 @@
+const Datastore = require('@seald-io/nedb');
+const path = require('path');
+const bcrypt = require('bcryptjs');
+
+const dataDir = path.join(__dirname, 'data');
+
+const users = new Datastore({ filename: path.join(dataDir, 'users.db'), autoload: true });
+const contracts = new Datastore({ filename: path.join(dataDir, 'contracts.db'), autoload: true });
+const messages = new Datastore({ filename: path.join(dataDir, 'messages.db'), autoload: true });
+const crm = new Datastore({ filename: path.join(dataDir, 'crm.db'), autoload: true });
+const activityLog = new Datastore({ filename: path.join(dataDir, 'activity_log.db'), autoload: true });
+const settings      = new Datastore({ filename: path.join(dataDir, 'settings.db'),      autoload: true });
+const tasks         = new Datastore({ filename: path.join(dataDir, 'tasks.db'),         autoload: true });
+const consultations = new Datastore({ filename: path.join(dataDir, 'consultations.db'), autoload: true });
+const appointments  = new Datastore({ filename: path.join(dataDir, 'appointments.db'),  autoload: true });
+
+// Indizes
+users.ensureIndex({ fieldName: 'email', unique: true });
+crm.ensureIndex({ fieldName: 'user_id', unique: true });
+
+// Admin-Account beim ersten Start anlegen
+async function seedAdmin() {
+  const existing = await users.findOneAsync({ role: 'admin' });
+  if (existing) return;
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@schindelhauer.de';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin1234!';
+  const hash = await bcrypt.hash(adminPassword, 12);
+
+  await users.insertAsync({
+    email: adminEmail,
+    password_hash: hash,
+    full_name: 'Felix Schindelhauer',
+    phone: '',
+    role: 'admin',
+    created_at: new Date().toISOString()
+  });
+
+  console.log(`\n✓ Admin-Account angelegt: ${adminEmail} / ${adminPassword}`);
+  console.log('  Bitte Passwort nach dem ersten Login ändern!\n');
+}
+
+// Standard-Einstellungen beim ersten Start anlegen
+async function seedSettings() {
+  const existing = await settings.findOneAsync({});
+  if (!existing) {
+    await settings.insertAsync({
+      agency_name:    'Felix Schindelhauer GmbH',
+      address:        'Castrop-Rauxel',
+      phone:          '',
+      email:          'info.schindelhauer@continentale.de',
+      opening_hours:  'Mo, Di, Do, Fr: 9:30–13:00 Uhr & 14:00–17:00 Uhr\nMi: 9:30–13:00 Uhr',
+      whatsapp:       '4915150900461'
+    });
+  }
+}
+
+module.exports = { users, contracts, messages, crm, activityLog, settings, tasks, consultations, appointments, seedAdmin, seedSettings };

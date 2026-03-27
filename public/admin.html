@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – Kundenportal Schindelhauer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page-wrapper">
+
+  <!-- Sidebar (Admin) -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
+        </svg>
+      </div>
+      <div class="sidebar-company">Felix Schindelhauer GmbH</div>
+      <div class="sidebar-subtitle">Administration</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">Admin-Bereich</div>
+      <a href="admin.html" class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        <span>Verwaltung</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="#" id="logoutBtn" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Abmelden</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Verwaltung</h1>
+          <p class="page-header-sub">Kunden, Verträge, Nachrichten und Einstellungen</p>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="customers">👥 Kunden</button>
+        <button class="tab-btn" data-tab="add-contract">📋 Vertrag hinzufügen</button>
+        <button class="tab-btn" data-tab="messages">💬 Nachrichten <span class="tab-badge hidden" id="unreadBadge">0</span></button>
+        <button class="tab-btn" data-tab="crm">📂 CRM</button>
+        <button class="tab-btn" data-tab="calendar">📅 Kalender</button>
+        <button class="tab-btn" data-tab="settings">⚙️ Einstellungen</button>
+      </div>
+
+      <!-- Tab: Kunden -->
+      <div id="tab-customers" class="tab-panel active">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="card-title" style="margin:0"><span class="icon">👥</span>Kundenliste</div>
+            <button class="btn btn-primary btn-sm" id="newCustomerBtn">➕ Neuen Kunden anlegen</button>
+          </div>
+          <div class="table-wrapper">
+            <table id="customersTable">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>E-Mail</th>
+                  <th>Telefon</th>
+                  <th>Verträge</th>
+                  <th>Angelegt</th>
+                  <th>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id="customersBody"></tbody>
+            </table>
+          </div>
+          <div id="customersEmpty" class="empty-state hidden">
+            <div class="empty-icon">👤</div>
+            <p>Noch keine Kunden angelegt</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Vertrag hinzufügen -->
+      <div id="tab-add-contract" class="tab-panel">
+        <div class="card">
+          <div class="card-title"><span class="icon">📋</span>Vertrag für Kunden eintragen</div>
+          <div id="addContractAlert" class="alert hidden"></div>
+          <form id="addContractForm">
+            <div class="form-group">
+              <label>Kunde *</label>
+              <select id="acCustomer" class="form-control" required>
+                <option value="">Kunden wählen…</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kategorie *</label>
+                <select id="acCategory" class="form-control" required>
+                  <option value="">Bitte wählen…</option>
+                  <option value="insurance">Versicherung</option>
+                  <option value="subscription">Abonnement</option>
+                  <option value="other">Sonstiges</option>
+                </select>
+              </div>
+              <!-- Versicherung: Dropdown -->
+              <div class="form-group" id="acNameSelectGroup" style="display:none">
+                <label>Versicherungsart *</label>
+                <select id="acNameSelect" class="form-control">
+                  <option value="">Bitte wählen…</option>
+                </select>
+                <input type="text" id="acNameCustom" class="form-control" placeholder="Versicherungsart eingeben" style="display:none;margin-top:8px">
+              </div>
+              <!-- Sonstiges / Abonnement: Freitext -->
+              <div class="form-group" id="acNameTextGroup">
+                <label>Vertragsname *</label>
+                <input type="text" id="acNameText" class="form-control" placeholder="z.B. Hausratversicherung">
+              </div>
+            </div>
+            <!-- Sparten-spezifische Extrafelder -->
+            <div id="acExtraFields"></div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Anbieter</label>
+                <input type="text" id="acProvider" class="form-control" placeholder="z.B. Continentale">
+              </div>
+              <div class="form-group">
+                <label>Betrag (€) *</label>
+                <input type="number" id="acAmount" class="form-control" min="0" step="0.01" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Zahlungsturnus *</label>
+                <select id="acCycle" class="form-control" required>
+                  <option value="monthly">Monatlich</option>
+                  <option value="quarterly">Vierteljährlich</option>
+                  <option value="halfyearly">Halbjährlich</option>
+                  <option value="yearly">Jährlich</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Vertragsbeginn</label>
+                <input type="date" id="acStartDate" class="form-control">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Vertragsende</label>
+                <input type="date" id="acEndDate" class="form-control">
+              </div>
+              <div class="form-group"></div>
+            </div>
+            <div class="form-group">
+              <label>Notizen</label>
+              <textarea id="acDescription" class="form-control"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">📋 Vertrag eintragen</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Tab: Nachrichten -->
+      <div id="tab-messages" class="tab-panel">
+        <div class="card">
+          <div class="card-title"><span class="icon">💬</span>Kundennachrichten</div>
+          <div id="messagesEmpty" class="empty-state hidden">
+            <div class="empty-icon">📭</div>
+            <p>Keine Nachrichten vorhanden</p>
+          </div>
+          <div id="messagesList"></div>
+        </div>
+      </div>
+
+      <!-- Tab: CRM -->
+      <div id="tab-crm" class="tab-panel">
+        <div class="card">
+          <div class="card-title"><span class="icon">📅</span>Anstehende Wiedervorlagen</div>
+          <div id="wiedervorlageList">
+            <div class="text-muted" style="padding:12px 0">Keine anstehenden Wiedervorlagen</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🎂</span>Geburtstage in den nächsten 14 Tagen</div>
+          <div id="birthdayList">
+            <div class="text-muted" style="padding:12px 0">Lade…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">✅</span>Aufgaben-Übersicht</div>
+          <div id="crmTasksOverdue"></div>
+          <div id="crmTasksDueWeek"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Kalender -->
+      <div id="tab-calendar" class="tab-panel">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+          <!-- Kalender-Grid -->
+          <div class="card" style="flex:1;min-width:320px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <button class="btn btn-sm btn-secondary" id="calPrevBtn">&#8249;</button>
+              <div class="card-title" style="margin:0" id="calMonthTitle"></div>
+              <button class="btn btn-sm btn-secondary" id="calNextBtn">&#8250;</button>
+            </div>
+            <div id="calGrid"></div>
+            <div id="calDayDetail" style="margin-top:16px;"></div>
+          </div>
+          <!-- Neuer Termin -->
+          <div class="card" style="width:300px;flex-shrink:0;">
+            <div class="card-title"><span class="icon">➕</span>Neuer Termin</div>
+            <div id="calFormAlert" class="alert hidden"></div>
+            <form id="calForm">
+              <div class="form-group">
+                <label>Titel *</label>
+                <input type="text" id="calTitle" class="form-control" placeholder="z.B. Beratungsgespräch" required>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Datum *</label>
+                  <input type="date" id="calDate" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label>Uhrzeit</label>
+                  <input type="time" id="calTime" class="form-control">
+                </div>
+              </div>
+              <div class="form-group" style="position:relative;">
+                <label>Kunde</label>
+                <input type="text" id="calCustomerSearch" class="form-control" placeholder="Name oder E-Mail suchen…" autocomplete="off">
+                <div id="calCustomerDropdown" class="cal-dropdown hidden"></div>
+                <input type="hidden" id="calCustomerId">
+                <div id="calCustomerSelected" class="text-muted" style="font-size:13px;margin-top:4px;"></div>
+              </div>
+              <div class="form-group">
+                <label>Notizen</label>
+                <textarea id="calNotes" class="form-control" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width:100%;">📅 Termin speichern</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Einstellungen -->
+      <div id="tab-settings" class="tab-panel">
+        <div class="card" style="max-width:680px;">
+          <div class="card-title"><span class="icon">⚙️</span>Agentur-Einstellungen</div>
+          <p class="text-muted" style="font-size:14px;margin-bottom:20px;">
+            Diese Daten werden im Kundenportal (Header, Kontaktseite) angezeigt.
+          </p>
+          <div id="settingsAlert" class="alert alert-success hidden">Einstellungen gespeichert!</div>
+          <form id="settingsForm">
+            <div class="form-group">
+              <label>Agenturname</label>
+              <input type="text" id="sAgencyName" class="form-control" placeholder="z.B. Felix Schindelhauer GmbH">
+            </div>
+            <div class="form-group">
+              <label>Adresse</label>
+              <input type="text" id="sAddress" class="form-control" placeholder="z.B. Hauptstraße 1, 44575 Castrop-Rauxel">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Telefon</label>
+                <input type="text" id="sPhone" class="form-control" placeholder="z.B. 02305 123456">
+              </div>
+              <div class="form-group">
+                <label>E-Mail</label>
+                <input type="email" id="sEmail" class="form-control" placeholder="z.B. info@agentur.de">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Öffnungszeiten</label>
+              <textarea id="sHours" class="form-control" rows="3" placeholder="z.B. Mo–Fr: 9:00–17:00 Uhr"></textarea>
+              <small class="text-muted">Zeilenumbrüche werden übernommen.</small>
+            </div>
+            <div class="form-group">
+              <label>WhatsApp-Nummer</label>
+              <input type="text" id="sWhatsapp" class="form-control" placeholder="z.B. 4915150900461 (mit Ländervorwahl, ohne +)">
+              <small class="text-muted">Leer lassen, um den WhatsApp-Button auszublenden.</small>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Speichern</button>
+          </form>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Modal: Neuen Kunden anlegen -->
+<div class="modal-overlay hidden" id="newCustomerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Neuen Kunden anlegen</h3>
+      <button class="modal-close" id="custModalClose">✕</button>
+    </div>
+    <div id="custModalAlert" class="alert alert-error hidden"></div>
+    <form id="newCustomerForm">
+      <div class="form-group">
+        <label>Vollständiger Name *</label>
+        <input type="text" id="custName" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label>E-Mail-Adresse *</label>
+        <input type="email" id="custEmail" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label>Telefon</label>
+        <input type="tel" id="custPhone" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Geburtsdatum</label>
+        <input type="date" id="custBirthday" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Initiales Passwort * (min. 8 Zeichen)</label>
+        <input type="text" id="custPassword" class="form-control" required minlength="8">
+        <div class="text-muted" style="margin-top:5px;">Das Passwort wird dem Kunden mitgeteilt. Er sollte es beim ersten Login ändern.</div>
+      </div>
+      <div id="custSuccessInfo" class="alert alert-success hidden"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="custModalCancel">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Kunden anlegen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Kundenprofil -->
+<div class="modal-overlay hidden" id="customerDetailModal">
+  <div class="modal" style="max-width:860px">
+    <div class="modal-header">
+      <h3 id="customerDetailTitle">Kundenprofil</h3>
+      <button class="modal-close" id="customerDetailClose">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab-btn active" data-mtab="contracts">📋 Verträge</button>
+      <button class="modal-tab-btn" data-mtab="stammdaten">👤 Stammdaten</button>
+      <button class="modal-tab-btn" data-mtab="crm">📝 CRM</button>
+      <button class="modal-tab-btn" data-mtab="history">📅 Aktivitäten</button>
+      <button class="modal-tab-btn" data-mtab="messages">💬 Nachrichten</button>
+      <button class="modal-tab-btn" data-mtab="tasks">✅ Aufgaben</button>
+      <button class="modal-tab-btn" data-mtab="consultations">📋 Protokolle</button>
+    </div>
+    <div id="mtab-contracts" class="modal-tab-panel">
+      <div id="viewContractsList"></div>
+    </div>
+    <div id="mtab-stammdaten" class="modal-tab-panel hidden">
+      <div id="stammdatenAlert" class="alert hidden"></div>
+      <div style="margin-top:16px">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Vollständiger Name</label>
+            <input type="text" id="sdName" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>E-Mail-Adresse</label>
+            <input type="email" id="sdEmail" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Telefon (Festnetz)</label>
+            <input type="tel" id="sdPhone" class="form-control" placeholder="z.B. 02305 123456">
+          </div>
+          <div class="form-group">
+            <label>Handynummer</label>
+            <input type="tel" id="sdMobile" class="form-control" placeholder="z.B. 0151 12345678">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Geburtsdatum</label>
+            <input type="date" id="sdBirthDate" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Familienstand</label>
+            <select id="sdMaritalStatus" class="form-control">
+              <option value="">– Bitte wählen –</option>
+              <option value="ledig">Ledig</option>
+              <option value="verheiratet">Verheiratet</option>
+              <option value="geschieden">Geschieden</option>
+              <option value="verwitwet">Verwitwet</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Name Ehepartner / Lebenspartner</label>
+            <input type="text" id="sdSpouseName" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Krankenversicherung</label>
+            <select id="sdHealthInsType" class="form-control">
+              <option value="">– Bitte wählen –</option>
+              <option value="gkv">Gesetzlich (GKV)</option>
+              <option value="pkv">Privat (PKV)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Krankenkasse / PKV-Anbieter</label>
+            <input type="text" id="sdHealthInsProvider" class="form-control">
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bruttoeinkommen (€ / Monat)</label>
+            <input type="number" id="sdGrossIncome" class="form-control" min="0" step="100" placeholder="z.B. 3500">
+          </div>
+          <div class="form-group">
+            <label>Nettoeinkommen (€ / Monat)</label>
+            <input type="number" id="sdNetIncome" class="form-control" min="0" step="100" placeholder="z.B. 2200">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Beruf</label>
+            <input type="text" id="sdBeruf" class="form-control" placeholder="z.B. Kaufmann, Ingenieur">
+          </div>
+          <div class="form-group">
+            <label>Berufsgruppe</label>
+            <select id="sdBerufsgruppe" class="form-control">
+              <option value="">Bitte wählen…</option>
+              <option value="angestellter">Angestellter</option>
+              <option value="selbststaendig">Selbstständig/Freiberufler</option>
+              <option value="beamter">Beamter/Öffentlicher Dienst</option>
+              <option value="rentner">Rentner/Pensionär</option>
+              <option value="sonstiges">Sonstiges</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Wohneigentum</label>
+            <select id="sdWohneigentum" class="form-control">
+              <option value="">Bitte wählen…</option>
+              <option value="mieter">Mieter</option>
+              <option value="eigentuemer-haus">Eigentümer (Haus)</option>
+              <option value="eigentuemer-wohnung">Eigentümer (Wohnung)</option>
+              <option value="sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <button class="btn btn-primary" id="stammdatenSaveBtn">💾 Speichern</button>
+      </div>
+    </div>
+    <div id="mtab-crm" class="modal-tab-panel hidden">
+      <div id="crmAlert" class="alert hidden"></div>
+      <div class="form-group" style="margin-top:16px">
+        <label>Kundenstatus</label>
+        <select id="crmStatus" class="form-control">
+          <option value="">– Kein Status –</option>
+          <option value="Lead">Lead</option>
+          <option value="Interessent">Interessent</option>
+          <option value="Angebot gestellt">Angebot gestellt</option>
+          <option value="Abschluss">Abschluss</option>
+          <option value="Aktiv">Aktiv</option>
+          <option value="Inaktiv">Inaktiv</option>
+          <option value="Gekündigt">Gekündigt</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Wiedervorlage</label>
+        <input type="date" id="crmWiedervorlage" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Notizen</label>
+        <textarea id="crmNotes" class="form-control" style="min-height:120px" placeholder="Gesprächsnotizen…"></textarea>
+      </div>
+      <button class="btn btn-primary" id="crmSaveBtn">💾 Speichern</button>
+    </div>
+    <div id="mtab-history" class="modal-tab-panel hidden">
+      <div id="activityLogList"><div class="text-muted" style="padding:16px">Lade…</div></div>
+    </div>
+    <div id="mtab-messages" class="modal-tab-panel hidden">
+      <div id="customerMessagesList"><div class="text-muted" style="padding:16px">Klicken Sie auf den Tab zum Laden.</div></div>
+    </div>
+    <div id="mtab-tasks" class="modal-tab-panel hidden">
+      <div id="taskAlert" class="alert hidden"></div>
+      <div style="display:flex;gap:8px;margin:16px 0;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:160px">
+          <input type="text" id="taskTitle" class="form-control" placeholder="Aufgabe beschreiben…">
+        </div>
+        <div style="width:160px">
+          <input type="date" id="taskDueDate" class="form-control">
+        </div>
+        <div style="width:130px">
+          <select id="taskPriority" class="form-control">
+            <option value="niedrig">Niedrig</option>
+            <option value="mittel" selected>Mittel</option>
+            <option value="hoch">Hoch</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="taskAddBtn">➕ Hinzufügen</button>
+      </div>
+      <div id="tasksList"></div>
+    </div>
+    <div id="mtab-consultations" class="modal-tab-panel hidden">
+      <div id="consultationAlert" class="alert hidden"></div>
+      <details style="margin:16px 0">
+        <summary style="cursor:pointer;font-weight:600;color:var(--primary);font-size:14px;">➕ Neues Protokoll erfassen</summary>
+        <div style="margin-top:12px">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Datum *</label>
+              <input type="date" id="conDate" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Betreff *</label>
+              <input type="text" id="conSubject" class="form-control" placeholder="z.B. Erstberatung BU">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Ergebnis / Inhalt</label>
+            <textarea id="conResult" class="form-control" rows="3" placeholder="Was wurde besprochen?"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Nächster Schritt</label>
+            <textarea id="conNextStep" class="form-control" rows="2" placeholder="Was folgt als nächstes?"></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" id="consultationSaveBtn">💾 Protokoll speichern</button>
+        </div>
+      </details>
+      <div id="consultationsList"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="customerDetailCancel">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/agency.js"></script>
+<script src="js/insurance-types.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
