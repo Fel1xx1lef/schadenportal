@@ -38,7 +38,7 @@ async function seedAdmin() {
     created_at: new Date().toISOString()
   });
 
-  console.log(`\n✓ Admin-Account angelegt: ${adminEmail} / ${adminPassword}`);
+  console.log(`\n✓ Admin-Account angelegt: ${adminEmail}`);
   console.log('  Bitte Passwort nach dem ersten Login ändern!\n');
 }
 
