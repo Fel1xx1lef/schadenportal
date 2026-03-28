@@ -297,6 +297,7 @@ document.querySelectorAll('.modal-tab-btn').forEach(btn => {
     if (btn.dataset.mtab === 'messages')      loadCustomerMessages(currentCrmUserId);
     if (btn.dataset.mtab === 'tasks')         loadTasks(currentCrmUserId);
     if (btn.dataset.mtab === 'consultations') loadConsultations(currentCrmUserId);
+    if (btn.dataset.mtab === 'empfehlungen')  loadEmpfehlungen(currentCrmUserId);
   });
 });
 
@@ -1421,5 +1422,103 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', loadAdmins);
   }
 });
+
+// ── Versicherungsempfehlungen ─────────────────────────────────────────────────
+async function loadEmpfehlungen(userId) {
+  const container = document.getElementById('empfehlungenContainer');
+  container.innerHTML = '<div class="text-muted" style="padding:16px">Lade…</div>';
+
+  const [contractList, profile] = await Promise.all([
+    fetch(`/api/admin/contracts/${userId}`).then(r => r.json()).catch(() => []),
+    fetch(`/api/admin/customers/${userId}/profile`).then(r => r.json()).catch(() => ({}))
+  ]);
+
+  const vorhandene = contractList.map(c => c.name ? c.name.toLowerCase() : '');
+  const hat = name => vorhandene.some(v => v.includes(name.toLowerCase()));
+
+  const alter = profile.birth_date ? Math.floor((Date.now() - new Date(profile.birth_date)) / 31557600000) : null;
+  const verheiratet = ['verheiratet', 'verpartnert'].includes((profile.marital_status || '').toLowerCase());
+  const selbststaendig = (profile.berufsgruppe || '').toLowerCase().includes('selbst');
+  const gkv = (profile.health_insurance_type || '').toLowerCase().includes('g');
+  const einkommen = parseFloat(profile.gross_income) || 0;
+
+  const empfehlungen = [];
+
+  // 🔴 Kritisch
+  if (!hat('haftpflicht'))
+    empfehlungen.push({ prio: 1, farbe: '#e53e3e', stufe: '🔴 Kritisch', name: 'Haftpflichtversicherung', grund: 'Jeder Erwachsene benötigt eine Haftpflicht – unbegrenzte Haftung bei Schäden an Dritten.', tipp: 'Günstigste und wichtigste Versicherung überhaupt.' });
+
+  if (!hat('berufsunfähigkeit') && !hat('bu') && (alter === null || alter < 58))
+    empfehlungen.push({ prio: 1, farbe: '#e53e3e', stufe: '🔴 Kritisch', name: 'Berufsunfähigkeitsversicherung (BU)', grund: 'Jeder 4. Arbeitnehmer wird vor Renteneintritt berufsunfähig. Ohne BU droht Altersarmut.', tipp: selbststaendig ? 'Als Selbstständige/r besonders dringend – kein gesetzlicher Schutz vorhanden.' : 'Faustformel: BU-Rente = 70–80 % des Nettoeinkommens.' });
+
+  if (!hat('krankentagegeld'))
+    empfehlungen.push({ prio: selbststaendig ? 1 : 2, farbe: selbststaendig ? '#e53e3e' : '#dd6b20', stufe: selbststaendig ? '🔴 Kritisch' : '🟠 Wichtig', name: 'Krankentagegeld', grund: selbststaendig ? 'Selbstständige erhalten keine Lohnfortzahlung – ab Tag 1 kein Einkommen bei Krankheit.' : 'Nach 6 Wochen sinkt das Krankengeld auf ca. 70 % des Bruttoeinkommens.', tipp: 'Lücke zwischen Nettoeinkommen und gesetzlichem Krankengeld schließen.' });
+
+  if (!hat('gebäude') && !hat('gebaeude') && !hat('wohngebäude'))
+    empfehlungen.push({ prio: 1, farbe: '#e53e3e', stufe: '🔴 Kritisch (für Eigentümer)', name: 'Gebäudeversicherung', grund: 'Feuer, Sturm oder Leitungswasser können ein Gebäude komplett vernichten.', tipp: 'Elementarschadenklausel (Überschwemmung) separat prüfen – oft nicht enthalten!' });
+
+  if (!hat('risikoleben') && !hat('risiko-leben') && verheiratet)
+    empfehlungen.push({ prio: 1, farbe: '#e53e3e', stufe: '🔴 Kritisch', name: 'Risikolebensversicherung', grund: 'Als verheiratete Person: Todesfall würde den Partner finanziell stark belasten.', tipp: 'Versicherungssumme = mind. 3–5-faches Jahreseinkommen.' });
+
+  // 🟠 Wichtig
+  if (!hat('hausrat'))
+    empfehlungen.push({ prio: 2, farbe: '#dd6b20', stufe: '🟠 Wichtig', name: 'Hausratversicherung', grund: 'Einbruch, Feuer oder Leitungswasser können den gesamten Hausrat vernichten.', tipp: 'Faustformel: 650–750 € × Wohnfläche in m².' });
+
+  if (!hat('risikoleben') && !hat('risiko-leben') && !verheiratet)
+    empfehlungen.push({ prio: 2, farbe: '#dd6b20', stufe: '🟠 Wichtig', name: 'Risikolebensversicherung', grund: 'Absicherung bei gemeinsamen Krediten oder finanziell abhängigen Angehörigen.', tipp: 'Günstig und einfach – besonders bei laufender Baufinanzierung.' });
+
+  if (!hat('pflege') && alter !== null && alter >= 40)
+    empfehlungen.push({ prio: 2, farbe: '#dd6b20', stufe: '🟠 Wichtig', name: 'Pflegezusatzversicherung', grund: `Mit ${alter} Jahren: Beiträge noch günstig, Abschluss vor 50 dringend empfohlen.`, tipp: 'Gesetzliche Pflegeversicherung deckt nur einen Bruchteil der echten Kosten.' });
+
+  if (!hat('rente') && !hat('altersvorsorge'))
+    empfehlungen.push({ prio: 2, farbe: '#dd6b20', stufe: '🟠 Wichtig', name: 'Rentenversicherung / Altersvorsorge', grund: selbststaendig ? 'Selbstständige ohne gesetzliche Rentenversicherung – private Vorsorge zwingend.' : 'Gesetzliche Rente reicht nicht aus – Versorgungslücke schließen.', tipp: selbststaendig ? 'Basisrente (Rürup) für Selbstständige steuerlich attraktiv.' : 'Betriebliche Altersvorsorge: Arbeitgeberzuschuss mitnehmen.' });
+
+  if (!hat('pkv') && !hat('private kranken') && gkv && einkommen > 69300)
+    empfehlungen.push({ prio: 2, farbe: '#dd6b20', stufe: '🟠 Wichtig', name: 'Private Krankenversicherung (PKV)', grund: `Einkommen überschreitet die Versicherungspflichtgrenze (69.300 €). PKV-Wechsel möglich.`, tipp: 'Sorgfältige Beratung notwendig – Rückkehr zur GKV schwierig.' });
+
+  if (!hat('pkv') && !hat('private kranken') && selbststaendig)
+    empfehlungen.push({ prio: 2, farbe: '#dd6b20', stufe: '🟠 Wichtig', name: 'Private Krankenversicherung (PKV)', grund: 'Als Selbstständige/r keine Pflichtmitgliedschaft in der GKV – PKV oft günstiger und besser.', tipp: 'Einmal PKV, schwer zurück zur GKV. Rechtzeitig beraten lassen.' });
+
+  // 🟡 Mittel
+  if (!hat('rechtsschutz'))
+    empfehlungen.push({ prio: 3, farbe: '#d69e2e', stufe: '🟡 Mittel', name: 'Rechtsschutzversicherung', grund: 'Rechtsstreitigkeiten (Miete, Arbeit, Verkehr) können fünfstellige Kosten verursachen.', tipp: 'Achtung: 3 Monate Wartezeit nach Abschluss – nicht im Streitfall abschließen.' });
+
+  if (!hat('unfall') && (alter === null || alter > 55 || !hat('berufsunfähigkeit')))
+    empfehlungen.push({ prio: 3, farbe: '#d69e2e', stufe: '🟡 Mittel', name: 'Unfallversicherung', grund: 'Ergänzt die BU für Unfälle – zahlt Einmalzahlung bei dauerhafter Invalidität.', tipp: 'Kein Ersatz für BU, aber sinnvolle Ergänzung – besonders für Kinder und Rentner.' });
+
+  if (!hat('zahn') && gkv)
+    empfehlungen.push({ prio: 3, farbe: '#d69e2e', stufe: '🟡 Mittel', name: 'Zahnzusatzversicherung', grund: 'GKV erstattet nur Festzuschüsse – hochwertiger Zahnersatz kostet schnell mehrere tausend Euro.', tipp: 'Wartezeiten und Staffelregelungen im ersten Jahr beachten.' });
+
+  if (!hat('cyber'))
+    empfehlungen.push({ prio: selbststaendig ? 2 : 4, farbe: selbststaendig ? '#dd6b20' : '#38a169', stufe: selbststaendig ? '🟠 Wichtig' : '🟢 Optional', name: 'Cyber-Versicherung', grund: selbststaendig ? 'Selbstständige mit Kundendaten sind attraktive Ziele für Phishing und Datenmissbrauch.' : 'Schutz vor Online-Banking-Betrug, Identitätsdiebstahl und Phishing.', tipp: 'Schäden können schnell vier- bis fünfstellig werden.' });
+
+  empfehlungen.sort((a, b) => a.prio - b.prio);
+
+  container.innerHTML = '';
+
+  if (empfehlungen.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>Alle wesentlichen Versicherungen sind abgedeckt.</p></div>';
+    return;
+  }
+
+  const hinweis = document.createElement('p');
+  hinweis.className = 'text-muted';
+  hinweis.style.cssText = 'font-size:13px;margin-bottom:16px;padding:0 4px';
+  hinweis.textContent = `${empfehlungen.length} fehlende oder empfehlenswerte Versicherung${empfehlungen.length !== 1 ? 'en' : ''} basierend auf Vertragsdaten und Kundenprofil.`;
+  container.appendChild(hinweis);
+
+  empfehlungen.forEach(e => {
+    const card = document.createElement('div');
+    card.style.cssText = 'border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:12px;border-left:4px solid ' + e.farbe;
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <strong style="font-size:15px">${e.name}</strong>
+        <span style="font-size:12px;color:${e.farbe};font-weight:600;white-space:nowrap">${e.stufe}</span>
+      </div>
+      <p style="margin:6px 0 4px;font-size:13px;color:#4a5568">${e.grund}</p>
+      <p style="margin:0;font-size:12px;color:#718096">💡 ${e.tipp}</p>`;
+    container.appendChild(card);
+  });
+}
 
 init();
