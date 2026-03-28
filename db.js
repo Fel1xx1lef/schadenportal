@@ -1,8 +1,10 @@
 const Datastore = require('@seald-io/nedb');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
 
 const dataDir = path.join(__dirname, 'data');
+fs.mkdirSync(path.join(dataDir, 'sessions'), { recursive: true });
 
 const users = new Datastore({ filename: path.join(dataDir, 'users.db'), autoload: true });
 const contracts = new Datastore({ filename: path.join(dataDir, 'contracts.db'), autoload: true });
