@@ -383,6 +383,48 @@ app.put('/api/admin/settings', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Admin-Account Verwaltung ───────────────────────────────────────────────────
+app.get('/api/admin/admins', requireAdmin, async (req, res) => {
+  try {
+    const admins = await users.findAsync({ role: 'admin' }).sort({ created_at: 1 });
+    res.json(admins.map(a => ({ id: a._id, email: a.email, full_name: a.full_name, created_at: a.created_at })));
+  } catch (err) {
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.post('/api/admin/admins', requireAdmin, async (req, res) => {
+  try {
+    const { email, full_name, password } = req.body;
+    if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
+    if (password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
+    const hash = await bcrypt.hash(password, 12);
+    const admin = await users.insertAsync({
+      email: email.toLowerCase().trim(),
+      password_hash: hash,
+      full_name: full_name.trim(),
+      role: 'admin',
+      created_at: new Date().toISOString()
+    });
+    res.status(201).json({ id: admin._id, email: admin.email, full_name: admin.full_name });
+  } catch (err) {
+    if (err.errorType === 'uniqueViolated') return res.status(409).json({ error: 'E-Mail bereits vergeben' });
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.delete('/api/admin/admins/:id', requireAdmin, async (req, res) => {
+  try {
+    if (req.params.id === req.session.userId) return res.status(400).json({ error: 'Du kannst deinen eigenen Account nicht löschen' });
+    const admin = await users.findOneAsync({ _id: req.params.id, role: 'admin' });
+    if (!admin) return res.status(404).json({ error: 'Admin nicht gefunden' });
+    await users.removeAsync({ _id: req.params.id });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // ── Admin Routes ──────────────────────────────────────────────────────────────
 app.get('/api/admin/customers', requireAdmin, async (req, res) => {
   try {

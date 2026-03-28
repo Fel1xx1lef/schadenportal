@@ -286,6 +286,19 @@
             <button type="submit" class="btn btn-primary">💾 Speichern</button>
           </form>
         </div>
+
+        <!-- Admin-Accounts -->
+        <div class="card" style="max-width:680px;margin-top:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="card-title" style="margin:0"><span class="icon">🔐</span>Admin-Accounts</div>
+            <button class="btn btn-primary btn-sm" id="newAdminBtn">➕ Admin hinzufügen</button>
+          </div>
+          <div id="adminsAlert" class="alert hidden"></div>
+          <table id="adminsTable">
+            <thead><tr><th>Name</th><th>E-Mail</th><th>Angelegt</th><th></th></tr></thead>
+            <tbody id="adminsBody"></tbody>
+          </table>
+        </div>
       </div>
 
     </main>
@@ -326,6 +339,36 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="custModalCancel">Abbrechen</button>
         <button type="submit" class="btn btn-primary">Kunden anlegen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Neuen Admin anlegen -->
+<div class="modal-overlay hidden" id="newAdminModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Admin-Account anlegen</h3>
+      <button class="modal-close" id="adminModalClose">✕</button>
+    </div>
+    <div id="adminModalAlert" class="alert alert-error hidden"></div>
+    <form id="newAdminForm">
+      <div class="form-group">
+        <label>Vollständiger Name *</label>
+        <input type="text" id="adminName" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label>E-Mail-Adresse *</label>
+        <input type="email" id="adminEmail" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label>Passwort * (min. 8 Zeichen)</label>
+        <input type="text" id="adminPassword" class="form-control" required minlength="8">
+      </div>
+      <div id="adminSuccessInfo" class="alert alert-success hidden"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="adminModalCancel">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Admin anlegen</button>
       </div>
     </form>
   </div>

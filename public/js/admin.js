@@ -1348,4 +1348,78 @@ async function init() {
   await Promise.all([loadCustomers(), loadMessages()]);
 }
 
+// ── Admin-Account Verwaltung ───────────────────────────────────────────────────
+async function loadAdmins() {
+  const admins = await fetch('/api/admin/admins').then(r => r.json()).catch(() => []);
+  const tbody = document.getElementById('adminsBody');
+  tbody.innerHTML = '';
+  admins.forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:bold">${a.full_name}</td>
+      <td>${a.email}</td>
+      <td>${formatDate(a.created_at)}</td>
+      <td><button class="btn btn-sm" style="color:#e53e3e;border-color:#e53e3e" data-id="${a.id}">Löschen</button></td>`;
+    tr.querySelector('button').addEventListener('click', async () => {
+      if (!confirm(`Admin "${a.full_name}" wirklich löschen?`)) return;
+      const res = await fetch(`/api/admin/admins/${a.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      const alertEl = document.getElementById('adminsAlert');
+      if (!res.ok) {
+        alertEl.textContent = data.error;
+        alertEl.className = 'alert alert-error';
+        alertEl.classList.remove('hidden');
+      } else {
+        alertEl.classList.add('hidden');
+        loadAdmins();
+      }
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+const newAdminModal = document.getElementById('newAdminModal');
+document.getElementById('newAdminBtn').addEventListener('click', () => {
+  document.getElementById('newAdminForm').reset();
+  document.getElementById('adminModalAlert').classList.add('hidden');
+  document.getElementById('adminSuccessInfo').classList.add('hidden');
+  newAdminModal.classList.remove('hidden');
+});
+function closeAdminModal() { newAdminModal.classList.add('hidden'); }
+document.getElementById('adminModalClose').addEventListener('click', closeAdminModal);
+document.getElementById('adminModalCancel').addEventListener('click', closeAdminModal);
+newAdminModal.addEventListener('click', e => { if (e.target === newAdminModal) closeAdminModal(); });
+
+document.getElementById('newAdminForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const alertEl   = document.getElementById('adminModalAlert');
+  const successEl = document.getElementById('adminSuccessInfo');
+  alertEl.classList.add('hidden');
+  successEl.classList.add('hidden');
+
+  const body = {
+    full_name: document.getElementById('adminName').value,
+    email:     document.getElementById('adminEmail').value,
+    password:  document.getElementById('adminPassword').value
+  };
+  const res  = await fetch('/api/admin/admins', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) {
+    alertEl.textContent = data.error || 'Fehler beim Anlegen';
+    alertEl.classList.remove('hidden');
+    return;
+  }
+  successEl.textContent = `Admin "${data.full_name}" wurde angelegt.`;
+  successEl.classList.remove('hidden');
+  document.getElementById('newAdminForm').reset();
+  loadAdmins();
+});
+
+// Admins laden wenn Einstellungen-Tab geöffnet wird
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.dataset.tab === 'settings') {
+    btn.addEventListener('click', loadAdmins);
+  }
+});
+
 init();
