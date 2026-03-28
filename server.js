@@ -311,7 +311,7 @@ function generateRecommendations(profile, contractList) {
 
   // Ergänzend (Leitfaden): existenzieller Basisschutz
   if (!has('haftpflicht')) {
-    recs.push({ type: 'Privathaftpflichtversicherung', priority: 'mittel',
+    recs.push({ type: 'Privathaftpflichtversicherung', priority: 'hoch',
       reason: 'Schützt Sie vor existenziellen Schäden durch Missgeschicke im Alltag. Unverzichtbar für jeden – und dabei sehr günstig.' });
   }
   if (!has('hausrat')) {
