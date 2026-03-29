@@ -307,53 +307,64 @@ document.getElementById('infoModalCloseBtn').addEventListener('click', closeInfo
 infoModal.addEventListener('click', e => { if (e.target === infoModal) closeInfoModal(); });
 
 // ── Name-Feld Logik ────────────────────────────────────────────────────────────
-const fCategory      = document.getElementById('fCategory');
-const nameSelectGrp  = document.getElementById('nameSelectGroup');
-const nameTextGrp    = document.getElementById('nameTextGroup');
-const fNameSelect    = document.getElementById('fNameSelect');
-const fNameCustom    = document.getElementById('fNameCustom');
-const fNameText      = document.getElementById('fNameText');
-const fExtraFields   = document.getElementById('fExtraFields');
+const fCategory        = document.getElementById('fCategory');
+const nameSelectGrp    = document.getElementById('nameSelectGroup');
+const nameTextGrp      = document.getElementById('nameTextGroup');
+const fNameSelect      = document.getElementById('fNameSelect');
+const fNameCustom      = document.getElementById('fNameCustom');
+const fNameText        = document.getElementById('fNameText');
+const fExtraFields     = document.getElementById('fExtraFields');
+const insurerSelectRow = document.getElementById('insurerSelectRow');
+const btnContinentale  = document.getElementById('btnContinentale');
+const btnOtherInsurer  = document.getElementById('btnOtherInsurer');
+const providerRow      = document.getElementById('providerRow');
+let selectedInsurer    = null; // 'continentale' | 'other' | null
 
-populateInsuranceSelect(fNameSelect);
+function setInsurer(type) {
+  selectedInsurer = type;
+  btnContinentale.classList.toggle('btn-primary', type === 'continentale');
+  btnContinentale.classList.toggle('btn-secondary', type !== 'continentale');
+  btnOtherInsurer.classList.toggle('btn-primary', type === 'other');
+  btnOtherInsurer.classList.toggle('btn-secondary', type !== 'other');
 
-const consentBlock       = document.getElementById('consentBlock');
-const consentAdvisoryRow = document.getElementById('consentAdvisoryRow');
-const consentOffersRow   = document.getElementById('consentOffersRow');
-const fConsentDisplay    = document.getElementById('fConsentDisplay');
-const fConsentAdvisory   = document.getElementById('fConsentAdvisory');
-const fConsentOffers     = document.getElementById('fConsentOffers');
-const fConsentDisplayTxt = document.getElementById('fConsentDisplayText');
-
-function updateConsentBlock(cat, isEditOfOwnContract) {
-  if (isEditOfOwnContract || (!cat || cat === 'other')) {
-    consentBlock.style.display = 'none';
-    return;
-  }
-  consentBlock.style.display = '';
-  if (cat === 'insurance') {
-    fConsentDisplayTxt.innerHTML = 'Ich willige ein, dass meine eingegebenen Vertragsdaten gespeichert und zur Darstellung sowie Analyse in meinem Kundenportal verwendet werden. <strong>(Erforderlich)</strong>';
-    consentAdvisoryRow.style.display = '';
-    consentOffersRow.style.display   = '';
-  } else if (cat === 'subscription') {
-    fConsentDisplayTxt.innerHTML = 'Ich willige ein, dass meine eingegebenen Abonnements und laufenden Kosten zur Darstellung und Analyse im Kundenportal verwendet werden. <strong>(Erforderlich)</strong>';
-    consentAdvisoryRow.style.display = '';
-    consentOffersRow.style.display   = 'none';
+  const fProvider = document.getElementById('fProvider');
+  if (type === 'continentale') {
+    fProvider.value = 'Continentale';
+    fProvider.readOnly = true;
+    fProvider.style.background = 'var(--light-gray)';
+    providerRow.style.display = 'none'; // Anbieter-Feld ausblenden, da klar
+  } else if (type === 'other') {
+    if (fProvider.value === 'Continentale') fProvider.value = '';
+    fProvider.readOnly = false;
+    fProvider.style.background = '';
+    providerRow.style.display = '';
   }
 }
 
+btnContinentale.addEventListener('click', () => setInsurer('continentale'));
+btnOtherInsurer.addEventListener('click', () => setInsurer('other'));
+
+populateInsuranceSelect(fNameSelect);
+
+
 fCategory.addEventListener('change', () => {
   if (fCategory.value === 'insurance') {
-    nameSelectGrp.style.display = '';
-    nameTextGrp.style.display   = 'none';
+    nameSelectGrp.style.display    = '';
+    nameTextGrp.style.display      = 'none';
+    insurerSelectRow.style.display = '';
     fNameText.removeAttribute('required');
   } else {
-    nameSelectGrp.style.display = 'none';
-    nameTextGrp.style.display   = '';
+    nameSelectGrp.style.display    = 'none';
+    nameTextGrp.style.display      = '';
+    insurerSelectRow.style.display = 'none';
+    providerRow.style.display      = '';
+    const fProvider = document.getElementById('fProvider');
+    fProvider.readOnly = false;
+    fProvider.style.background = '';
+    selectedInsurer = null;
     fNameText.setAttribute('required', '');
   }
   fExtraFields.innerHTML = '';
-  updateConsentBlock(fCategory.value, false);
 });
 
 fNameSelect.addEventListener('change', () => {
@@ -390,18 +401,22 @@ function openAdd() {
   document.getElementById('contractId').value = '';
   form.reset();
   // Reset Namensfelder-Anzeige
-  nameSelectGrp.style.display  = 'none';
-  nameTextGrp.style.display    = '';
+  nameSelectGrp.style.display    = 'none';
+  nameTextGrp.style.display      = '';
   fNameText.setAttribute('required', '');
-  fNameCustom.style.display    = 'none';
-  fExtraFields.innerHTML       = '';
+  fNameCustom.style.display      = 'none';
+  fExtraFields.innerHTML         = '';
+  insurerSelectRow.style.display = 'none';
+  providerRow.style.display      = '';
+  selectedInsurer                = null;
+  btnContinentale.classList.remove('btn-primary'); btnContinentale.classList.add('btn-secondary');
+  btnOtherInsurer.classList.remove('btn-primary');  btnOtherInsurer.classList.add('btn-secondary');
+  const fProvider = document.getElementById('fProvider');
+  fProvider.readOnly = false;
+  fProvider.style.background = '';
   // Neue Felder zurücksetzen
   document.getElementById('fCancellationDeadline').value = '';
   document.getElementById('fRenewalDate').value = '';
-  fConsentDisplay.checked  = false;
-  fConsentAdvisory.checked = false;
-  fConsentOffers.checked   = false;
-  consentBlock.style.display = 'none';
   modalAlert.classList.add('hidden');
   modal.classList.remove('hidden');
   if (window.location.hash === '#new') history.replaceState(null, '', window.location.pathname);
@@ -419,13 +434,11 @@ function openEdit(c) {
   document.getElementById('fCancellationDeadline').value = c.cancellation_deadline || '';
   document.getElementById('fRenewalDate').value = c.renewal_date || '';
   document.getElementById('fDescription').value = c.description || '';
-  fConsentDisplay.checked  = !!c.consent_display_and_analysis;
-  fConsentAdvisory.checked = !!c.consent_advisory;
-  fConsentOffers.checked   = !!c.consent_offers;
 
   if (c.category === 'insurance') {
-    nameSelectGrp.style.display = '';
-    nameTextGrp.style.display   = 'none';
+    nameSelectGrp.style.display    = '';
+    nameTextGrp.style.display      = 'none';
+    insurerSelectRow.style.display = '';
     fNameText.removeAttribute('required');
 
     const typeMatch = INSURANCE_TYPES.find(t => t.name === c.name);
@@ -439,16 +452,23 @@ function openEdit(c) {
       fNameCustom.style.display = '';
     }
     renderExtraFields(typeMatch ? c.name : '', fExtraFields, 'f', c.details || {});
+
+    // Versicherer-Buttons wiederherstellen
+    const insurerType = (c.is_own_insurer || c.added_by_role === 'admin') ? 'continentale' : 'other';
+    setInsurer(insurerType);
   } else {
-    nameSelectGrp.style.display = 'none';
-    nameTextGrp.style.display   = '';
+    nameSelectGrp.style.display    = 'none';
+    nameTextGrp.style.display      = '';
+    insurerSelectRow.style.display = 'none';
+    providerRow.style.display      = '';
+    selectedInsurer                = null;
+    const fProvider = document.getElementById('fProvider');
+    fProvider.readOnly = false;
+    fProvider.style.background = '';
     fNameText.setAttribute('required', '');
     fNameText.value             = c.name;
     fExtraFields.innerHTML      = '';
   }
-
-  // Consent-Block: zeigen falls kein eigener Versicherer-Vertrag
-  updateConsentBlock(c.category, isOwn(c));
 
   modalAlert.classList.add('hidden');
   modal.classList.remove('hidden');
@@ -457,8 +477,15 @@ function openEdit(c) {
 function closeModal() {
   modal.classList.add('hidden');
   form.reset();
-  fExtraFields.innerHTML = '';
-  consentBlock.style.display = 'none';
+  fExtraFields.innerHTML         = '';
+  insurerSelectRow.style.display = 'none';
+  providerRow.style.display      = '';
+  selectedInsurer                = null;
+  const fProvider = document.getElementById('fProvider');
+  fProvider.readOnly = false;
+  fProvider.style.background = '';
+  btnContinentale.classList.remove('btn-primary'); btnContinentale.classList.add('btn-secondary');
+  btnOtherInsurer.classList.remove('btn-primary');  btnOtherInsurer.classList.add('btn-secondary');
 }
 
 document.getElementById('addBtn').addEventListener('click', openAdd);
@@ -481,19 +508,20 @@ form.addEventListener('submit', async e => {
   const details = insuranceType ? collectExtraFields(insuranceType, 'f') : {};
   const cat = fCategory.value;
 
-  // Consent-Validierung für Fremdverträge und Abos
-  if ((cat === 'insurance' || cat === 'subscription') && consentBlock.style.display !== 'none') {
-    if (!fConsentDisplay.checked) {
-      modalAlert.textContent = 'Bitte stimme der Datenspeicherung zu, um fortzufahren.';
-      modalAlert.classList.remove('hidden');
-      return;
-    }
+  // Versicherer-Validierung für Versicherungen
+  if (cat === 'insurance' && !selectedInsurer) {
+    modalAlert.textContent = 'Bitte wähle, ob der Vertrag bei der Continentale oder einem anderen Versicherer läuft.';
+    modalAlert.classList.remove('hidden');
+    return;
   }
+
+  const isOwnInsurer = cat === 'insurance' && selectedInsurer === 'continentale';
 
   const body = {
     category:       cat,
     name,
-    provider:       document.getElementById('fProvider').value,
+    provider:       isOwnInsurer ? 'Continentale' : document.getElementById('fProvider').value,
+    is_own_insurer: isOwnInsurer,
     premium_amount: document.getElementById('fAmount').value,
     premium_cycle:  document.getElementById('fCycle').value,
     start_date:     document.getElementById('fStartDate').value,
@@ -501,10 +529,7 @@ form.addEventListener('submit', async e => {
     cancellation_deadline: document.getElementById('fCancellationDeadline').value,
     renewal_date:   document.getElementById('fRenewalDate').value,
     description:    document.getElementById('fDescription').value,
-    details,
-    consent_display_and_analysis: fConsentDisplay.checked,
-    consent_advisory: fConsentAdvisory.checked,
-    consent_offers:   fConsentOffers.checked
+    details
   };
 
   const url    = id ? `/api/contracts/${id}` : '/api/contracts';

@@ -127,12 +127,20 @@
           <input type="text" id="fNameText" class="form-control" placeholder="z.B. Hausratversicherung">
         </div>
       </div>
+      <!-- Versicherer-Auswahl (nur bei Versicherung) -->
+      <div class="form-group" id="insurerSelectRow" style="display:none">
+        <label>Bei welchem Versicherer? *</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          <button type="button" class="btn insurer-btn" id="btnContinentale">🏛️ Continentale</button>
+          <button type="button" class="btn insurer-btn" id="btnOtherInsurer">Anderer Versicherer</button>
+        </div>
+      </div>
       <!-- Sparten-spezifische Extrafelder -->
       <div id="fExtraFields"></div>
       <div class="form-row">
-        <div class="form-group">
-          <label>Anbieter</label>
-          <input type="text" id="fProvider" class="form-control" placeholder="z.B. Continentale">
+        <div class="form-group" id="providerRow">
+          <label id="providerLabel">Anbieter</label>
+          <input type="text" id="fProvider" class="form-control" placeholder="Name des Versicherers">
         </div>
         <div class="form-group">
           <label>Betrag (€) *</label>
@@ -174,24 +182,6 @@
       <div class="form-group">
         <label>Notizen</label>
         <textarea id="fDescription" class="form-control" placeholder="Optionale Anmerkungen…"></textarea>
-      </div>
-
-      <!-- Einwilligungsblock (nur bei Fremdverträgen und Abos) -->
-      <div id="consentBlock" class="consent-block" style="display:none">
-        <div class="consent-title">Einwilligungen</div>
-        <label class="consent-item">
-          <input type="checkbox" id="fConsentDisplay">
-          <span id="fConsentDisplayText">Ich willige ein, dass meine eingegebenen Daten gespeichert und zur Darstellung sowie Analyse in meinem Kundenportal verwendet werden. <strong>(Erforderlich)</strong></span>
-        </label>
-        <label class="consent-item" id="consentAdvisoryRow">
-          <input type="checkbox" id="fConsentAdvisory">
-          <span>Ich möchte, dass meine Daten für Beratung und Optimierungsvorschläge genutzt werden. <em>(Optional)</em></span>
-        </label>
-        <label class="consent-item" id="consentOffersRow" style="display:none">
-          <input type="checkbox" id="fConsentOffers">
-          <span>Ich bin damit einverstanden, auf Basis meiner Daten Angebote von uns zu erhalten. <em>(Optional)</em></span>
-        </label>
-        <p class="consent-note">Die Angabe ist freiwillig. Du kannst deine Einwilligungen jederzeit unter <a href="consent.html">Datenschutz &amp; Einwilligungen</a> widerrufen.</p>
       </div>
 
       <div class="modal-footer">

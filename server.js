@@ -75,7 +75,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     req.session.userRole = user.role;
     req.session.userEmail = user.email;
 
-    res.json({ ok: true, role: user.role, name: user.full_name });
+    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!user.consent_given });
   } catch (err) {
     console.error('Login-Fehler:', err);
     res.status(500).json({ error: 'Serverfehler' });
@@ -90,8 +90,42 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
   try {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
-    res.json({ id: user._id, email: user.email, full_name: user.full_name, role: user.role, phone: user.phone || '' });
+    res.json({ id: user._id, email: user.email, full_name: user.full_name, role: user.role, phone: user.phone || '',
+      consent_given: !!user.consent_given, consent_advisory: !!user.consent_advisory, consent_offers: !!user.consent_offers });
   } catch (err) {
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.post('/api/auth/consent', requireLogin, async (req, res) => {
+  try {
+    const { consent_display_and_analysis, consent_advisory, consent_offers } = req.body;
+    if (!consent_display_and_analysis) return res.status(400).json({ error: 'Grundeinwilligung erforderlich' });
+    await users.updateAsync({ _id: req.session.userId }, { $set: {
+      consent_given: true,
+      consent_display_and_analysis: true,
+      consent_advisory: !!consent_advisory,
+      consent_offers: !!consent_offers,
+      consent_date: new Date().toISOString()
+    }});
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Consent-Fehler:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.put('/api/auth/consent', requireLogin, async (req, res) => {
+  try {
+    const { consent_advisory, consent_offers } = req.body;
+    await users.updateAsync({ _id: req.session.userId }, { $set: {
+      consent_advisory: !!consent_advisory,
+      consent_offers: !!consent_offers,
+      updated_at: new Date().toISOString()
+    }});
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Consent-Update-Fehler:', err);
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
@@ -128,16 +162,12 @@ app.get('/api/contracts', requireLogin, async (req, res) => {
 app.post('/api/contracts', requireLogin, async (req, res) => {
   try {
     const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
-            cancellation_deadline, renewal_date, consent_display_and_analysis, consent_advisory, consent_offers } = req.body;
+            cancellation_deadline, renewal_date, is_own_insurer } = req.body;
     if (!category || !name || !premium_amount || !premium_cycle) {
       return res.status(400).json({ error: 'Pflichtfelder fehlen' });
     }
 
-    // Einwilligung zur Datenspeicherung ist Pflicht für Fremdverträge und Abos
-    if ((category === 'insurance' || category === 'subscription') && !consent_display_and_analysis) {
-      return res.status(400).json({ error: 'Zustimmung zur Datenspeicherung erforderlich' });
-    }
-
+    const user = await users.findOneAsync({ _id: req.session.userId });
     const doc = await contracts.insertAsync({
       user_id: req.session.userId,
       category,
@@ -149,13 +179,13 @@ app.post('/api/contracts', requireLogin, async (req, res) => {
       start_date: start_date || '',
       end_date: end_date || '',
       details: details && typeof details === 'object' ? details : {},
-      is_own_insurer: false,
+      is_own_insurer: category === 'insurance' ? !!is_own_insurer : false,
       cancellation_deadline: cancellation_deadline || '',
       renewal_date: renewal_date || '',
-      consent_display_and_analysis: !!consent_display_and_analysis,
-      consent_advisory: !!consent_advisory,
-      consent_offers: !!consent_offers,
-      consent_date: consent_display_and_analysis ? new Date().toISOString() : null,
+      consent_display_and_analysis: !!user.consent_display_and_analysis,
+      consent_advisory: !!user.consent_advisory,
+      consent_offers: !!user.consent_offers,
+      consent_date: user.consent_date || null,
       added_by_role: 'customer',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -174,7 +204,8 @@ app.put('/api/contracts/:id', requireLogin, async (req, res) => {
     if (contract.added_by_role === 'admin') return res.status(403).json({ error: 'Agentur-Verträge können nicht bearbeitet werden' });
 
     const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
-            cancellation_deadline, renewal_date, consent_display_and_analysis, consent_advisory, consent_offers } = req.body;
+            cancellation_deadline, renewal_date, consent_display_and_analysis, consent_advisory, consent_offers,
+            is_own_insurer } = req.body;
     const consentUpdate = {};
     if (consent_display_and_analysis !== undefined) consentUpdate.consent_display_and_analysis = !!consent_display_and_analysis;
     if (consent_advisory !== undefined) consentUpdate.consent_advisory = !!consent_advisory;
@@ -190,6 +221,7 @@ app.put('/api/contracts/:id', requireLogin, async (req, res) => {
         start_date: start_date || '',
         end_date: end_date || '',
         details: details && typeof details === 'object' ? details : {},
+        is_own_insurer: category === 'insurance' ? !!is_own_insurer : false,
         cancellation_deadline: cancellation_deadline || '',
         renewal_date: renewal_date || '',
         ...consentUpdate,

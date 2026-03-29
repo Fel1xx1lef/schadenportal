@@ -22,7 +22,13 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
       alert.textContent = data.error || 'Anmeldung fehlgeschlagen';
       alert.classList.remove('hidden');
     } else {
-      window.location.href = data.role === 'admin' ? 'admin.html' : 'dashboard.html';
+      if (data.role === 'admin') {
+        window.location.href = 'admin.html';
+      } else if (!data.consent_given) {
+        window.location.href = 'consent.html';
+      } else {
+        window.location.href = 'dashboard.html';
+      }
     }
   } catch {
     alert.textContent = 'Verbindungsfehler. Bitte erneut versuchen.';

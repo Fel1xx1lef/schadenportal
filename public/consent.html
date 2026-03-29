@@ -9,8 +9,8 @@
 <body>
 <div class="page-wrapper">
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
+  <!-- Sidebar (nur im Verwaltungs-Modus sichtbar) -->
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="sidebar-logo-mark">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -54,72 +54,140 @@
   </aside>
 
   <!-- Main -->
-  <div class="main-content">
+  <div class="main-content" id="mainContent">
     <main class="main">
-      <div class="page-header">
-        <div>
-          <h1>Datenschutz &amp; Einwilligungen</h1>
-          <p class="page-header-sub">Hier kannst du deine Einwilligungen einsehen, ändern und Daten löschen.</p>
+
+      <!-- Erst-Einwilligung (wird per JS angezeigt wenn consent_given = false) -->
+      <div id="firstConsentView" style="display:none;max-width:600px;margin:0 auto;">
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="width:56px;height:56px;background:var(--primary);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h1 style="margin-bottom:8px;">Willkommen im Kundenportal</h1>
+          <p style="color:var(--text-secondary);font-size:15px;line-height:1.6;">Bevor du loslegen kannst, benötigen wir deine Einwilligung zur Nutzung deiner Daten.</p>
+        </div>
+
+        <div class="card animate-in" style="margin-bottom:20px;">
+          <p style="font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:0;">
+            Im Kundenportal kannst du deine Versicherungsverträge und Abonnements verwalten. Damit das funktioniert, speichern wir die von dir eingegebenen Daten. Du kannst deine Einwilligungen jederzeit unter <strong>Datenschutz & Einwilligungen</strong> anpassen oder widerrufen.
+          </p>
+        </div>
+
+        <div class="card animate-in">
+          <div id="firstConsentAlert" class="alert alert-error hidden" style="margin-bottom:16px;"></div>
+
+          <label class="consent-item" style="padding:14px 0;border-bottom:1px solid var(--border);">
+            <input type="checkbox" id="fc_display" required>
+            <span>
+              Ich willige ein, dass meine im Portal eingegebenen Daten gespeichert und zur Anzeige sowie Analyse in meinem Kundenportal verwendet werden.
+              <strong>(Erforderlich)</strong>
+            </span>
+          </label>
+          <label class="consent-item" style="padding:14px 0;border-bottom:1px solid var(--border);">
+            <input type="checkbox" id="fc_advisory">
+            <span>
+              Ich bin damit einverstanden, dass meine Daten für Beratung und Optimierungsvorschläge durch meine Agentur genutzt werden.
+              <em>(Optional)</em>
+            </span>
+          </label>
+          <label class="consent-item" style="padding:14px 0;">
+            <input type="checkbox" id="fc_offers">
+            <span>
+              Ich bin damit einverstanden, auf Basis meiner Daten Angebote und Empfehlungen von meiner Agentur zu erhalten.
+              <em>(Optional)</em>
+            </span>
+          </label>
+
+          <div style="margin-top:24px;">
+            <button class="btn btn-primary" id="firstConsentBtn" style="width:100%;justify-content:center;">
+              Zustimmen & Portal betreten
+            </button>
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);margin-top:12px;text-align:center;">
+            Die optionalen Einwilligungen kannst du jederzeit unter Datenschutz & Einwilligungen widerrufen.
+          </p>
         </div>
       </div>
 
-      <div class="card animate-in" style="margin-bottom:20px;">
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.7;">
-          Die nachfolgenden Einträge wurden von dir selbst hinzugefügt. Du kannst jederzeit einzelne Einwilligungen ändern oder Daten vollständig löschen.
-          Ohne die Grundeinwilligung zur Datenspeicherung ist eine Anzeige des Eintrags im Portal nicht möglich. In diesem Fall empfehlen wir, den Eintrag zu löschen.
-        </p>
+      <!-- Verwaltungs-Ansicht (wird per JS angezeigt wenn consent_given = true) -->
+      <div id="manageConsentView" style="display:none;">
+        <div class="page-header">
+          <div>
+            <h1>Datenschutz &amp; Einwilligungen</h1>
+            <p class="page-header-sub">Deine aktuellen Einwilligungen im Überblick</p>
+          </div>
+        </div>
+
+        <div class="card animate-in" style="margin-bottom:20px;">
+          <div id="manageConsentAlert" class="alert hidden" style="margin-bottom:16px;"></div>
+
+          <div style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text-primary);">Aktuelle Einwilligungen</div>
+
+          <!-- Pflicht -->
+          <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:16px;flex-shrink:0;margin-top:1px;">✅</span>
+            <div>
+              <div style="font-size:14px;font-weight:500;">Datenspeicherung & Portalnutzung</div>
+              <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Deine eingegebenen Daten werden gespeichert und im Portal angezeigt. <strong>(Erforderlich)</strong></div>
+            </div>
+          </div>
+
+          <!-- Beratung (editierbar) -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span id="badge_advisory" style="font-size:16px;flex-shrink:0;margin-top:1px;">⬜</span>
+              <div>
+                <div style="font-size:14px;font-weight:500;">Beratung & Optimierungsvorschläge</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Deine Daten werden für Beratung genutzt. <em>(Optional)</em></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Angebote (editierbar) -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <span id="badge_offers" style="font-size:16px;flex-shrink:0;margin-top:1px;">⬜</span>
+              <div>
+                <div style="font-size:14px;font-weight:500;">Angebote & Empfehlungen</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Du erhältst Angebote auf Basis deiner Daten. <em>(Optional)</em></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" id="editConsentBtn">✏️ Optionale Einwilligungen bearbeiten</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);margin-top:12px;line-height:1.6;">
+            Die Pflicht-Einwilligung (Datenspeicherung) kann nicht widerrufen werden, solange du das Portal nutzt. Wenn du deine Daten vollständig löschen möchtest, wende dich bitte an deine Agentur.
+          </p>
+        </div>
       </div>
 
-      <div id="consentList">
-        <div class="empty-state"><div class="empty-icon">⏳</div><p>Wird geladen…</p></div>
-      </div>
     </main>
   </div>
 </div>
 
-<!-- Modal: Einwilligungen bearbeiten -->
-<div class="modal-overlay hidden" id="consentEditModal">
-  <div class="modal" style="max-width:500px;">
+<!-- Modal: Optionale Einwilligungen bearbeiten -->
+<div class="modal-overlay hidden" id="editConsentModal">
+  <div class="modal" style="max-width:480px;">
     <div class="modal-header">
-      <h3 id="consentEditTitle">Einwilligungen bearbeiten</h3>
-      <button class="modal-close" id="consentEditClose">✕</button>
+      <h3>Einwilligungen bearbeiten</h3>
+      <button class="modal-close" id="editConsentModalClose">✕</button>
     </div>
-    <div id="consentEditAlert" class="alert alert-error hidden"></div>
-    <input type="hidden" id="consentEditId">
+    <div id="editConsentModalAlert" class="alert alert-error hidden" style="margin-bottom:12px;"></div>
     <div class="consent-block" style="display:block;margin-bottom:0;">
-      <div class="consent-title">Aktuelle Einwilligungen</div>
       <label class="consent-item">
-        <input type="checkbox" id="ceConsentDisplay">
-        <span id="ceConsentDisplayText">Datenspeicherung und Analyse <strong>(Erforderlich)</strong></span>
+        <input type="checkbox" id="ec_advisory">
+        <span>Beratung & Optimierungsvorschläge <em>(Optional)</em></span>
       </label>
-      <label class="consent-item" id="ceAdvisoryRow">
-        <input type="checkbox" id="ceConsentAdvisory">
-        <span>Beratung und Optimierungsvorschläge <em>(Optional)</em></span>
+      <label class="consent-item">
+        <input type="checkbox" id="ec_offers">
+        <span>Angebote & Empfehlungen <em>(Optional)</em></span>
       </label>
-      <label class="consent-item" id="ceOffersRow" style="display:none">
-        <input type="checkbox" id="ceConsentOffers">
-        <span>Angebote und Empfehlungen <em>(Optional)</em></span>
-      </label>
-      <p class="consent-note">Du kannst deine optionalen Einwilligungen jederzeit widerrufen. Wenn du die Grundeinwilligung entfernen möchtest, lösche bitte den Datensatz.</p>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" id="consentEditCancel">Abbrechen</button>
-      <button type="button" class="btn btn-primary" id="consentEditSave">Speichern</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Löschen bestätigen -->
-<div class="modal-overlay hidden" id="deleteModal">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-header">
-      <h3>Eintrag löschen</h3>
-      <button class="modal-close" id="deleteModalClose">✕</button>
-    </div>
-    <p style="padding:16px 0;font-size:14px;">Möchtest du <strong id="deleteName"></strong> wirklich löschen? Alle damit verbundenen Daten werden dauerhaft entfernt.</p>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" id="deleteCancel">Abbrechen</button>
-      <button type="button" class="btn btn-danger" id="deleteConfirm">Löschen</button>
+      <button type="button" class="btn btn-secondary" id="editConsentModalCancel">Abbrechen</button>
+      <button type="button" class="btn btn-primary" id="editConsentModalSave">Speichern</button>
     </div>
   </div>
 </div>
