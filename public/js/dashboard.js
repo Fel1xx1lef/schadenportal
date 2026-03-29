@@ -52,9 +52,15 @@ async function init() {
   document.getElementById('otherMonthly').textContent = fmt(othMonthly);
 
   // Statistiken
-  document.getElementById('countTotal').textContent = contracts.length;
-  document.getElementById('countInsurance').textContent = contracts.filter(c => c.category === 'insurance').length;
+  const ownCount      = contracts.filter(c => c.category === 'insurance' && (c.is_own_insurer === true || c.added_by_role === 'admin')).length;
+  const externalCount = contracts.filter(c => c.category === 'insurance' && !c.is_own_insurer && c.added_by_role !== 'admin').length;
+  document.getElementById('countTotal').textContent        = contracts.length;
+  document.getElementById('countOwn').textContent          = ownCount;
+  document.getElementById('countExternal').textContent     = externalCount;
   document.getElementById('countSubscription').textContent = contracts.filter(c => c.category === 'subscription').length;
+
+  // Hinweise rendern
+  renderHints(contracts);
 
   // Empfehlungen laden
   loadRecommendations();
@@ -127,6 +133,51 @@ function renderCostChart(ins, sub, oth) {
   totalRow.style.cssText = 'display:flex;justify-content:space-between;border-top:1px solid var(--light-gray);padding-top:12px;margin-top:4px;font-size:14px;';
   totalRow.innerHTML = `<span class="text-muted">Gesamt monatlich</span><span style="font-weight:700;color:var(--primary)">${fmt(total)} / Mo.</span>`;
   container.appendChild(totalRow);
+}
+
+function renderHints(contracts) {
+  const hintsCard = document.getElementById('hintsCard');
+  const hintsList = document.getElementById('hintsList');
+  const hints = [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in60 = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+  // Bald kündbare Verträge
+  contracts.forEach(c => {
+    if (!c.cancellation_deadline || !c.consent_display_and_analysis) return;
+    const d = new Date(c.cancellation_deadline);
+    if (d >= today && d <= in60) {
+      const days = Math.round((d - today) / (24 * 60 * 60 * 1000));
+      hints.push({ icon: '⏰', text: `Kündigungsfrist läuft ab: <strong>${c.name}</strong> – noch ${days} Tag${days === 1 ? '' : 'e'} (${c.cancellation_deadline})` });
+    }
+  });
+
+  // Mehrere Abos in gleicher Kategorie (Streaming, Fitness etc.)
+  const subsByName = {};
+  contracts.filter(c => c.category === 'subscription' && c.consent_display_and_analysis).forEach(c => {
+    const key = (c.name || '').toLowerCase();
+    subsByName[key] = (subsByName[key] || 0) + 1;
+  });
+  const totalSubs = contracts.filter(c => c.category === 'subscription' && c.consent_display_and_analysis).length;
+  if (totalSubs >= 4) {
+    hints.push({ icon: '📱', text: `Du hast <strong>${totalSubs} aktive Abonnements</strong> hinterlegt. Hier könnte Einsparpotenzial bestehen.` });
+  }
+
+  if (hints.length === 0) {
+    hintsCard.style.display = 'none';
+    return;
+  }
+
+  hintsCard.style.display = '';
+  hintsList.innerHTML = '';
+  hints.forEach(h => {
+    const div = document.createElement('div');
+    div.className = 'hint-item';
+    div.innerHTML = `<span class="hint-icon">${h.icon}</span><span>${h.text}</span>`;
+    hintsList.appendChild(div);
+  });
 }
 
 init();

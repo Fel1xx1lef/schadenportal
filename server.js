@@ -127,9 +127,15 @@ app.get('/api/contracts', requireLogin, async (req, res) => {
 
 app.post('/api/contracts', requireLogin, async (req, res) => {
   try {
-    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details } = req.body;
+    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
+            cancellation_deadline, renewal_date, consent_display_and_analysis, consent_advisory, consent_offers } = req.body;
     if (!category || !name || !premium_amount || !premium_cycle) {
       return res.status(400).json({ error: 'Pflichtfelder fehlen' });
+    }
+
+    // Einwilligung zur Datenspeicherung ist Pflicht für Fremdverträge und Abos
+    if ((category === 'insurance' || category === 'subscription') && !consent_display_and_analysis) {
+      return res.status(400).json({ error: 'Zustimmung zur Datenspeicherung erforderlich' });
     }
 
     const doc = await contracts.insertAsync({
@@ -143,6 +149,13 @@ app.post('/api/contracts', requireLogin, async (req, res) => {
       start_date: start_date || '',
       end_date: end_date || '',
       details: details && typeof details === 'object' ? details : {},
+      is_own_insurer: false,
+      cancellation_deadline: cancellation_deadline || '',
+      renewal_date: renewal_date || '',
+      consent_display_and_analysis: !!consent_display_and_analysis,
+      consent_advisory: !!consent_advisory,
+      consent_offers: !!consent_offers,
+      consent_date: consent_display_and_analysis ? new Date().toISOString() : null,
       added_by_role: 'customer',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -160,7 +173,13 @@ app.put('/api/contracts/:id', requireLogin, async (req, res) => {
     if (!contract) return res.status(404).json({ error: 'Nicht gefunden' });
     if (contract.added_by_role === 'admin') return res.status(403).json({ error: 'Agentur-Verträge können nicht bearbeitet werden' });
 
-    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details } = req.body;
+    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
+            cancellation_deadline, renewal_date, consent_display_and_analysis, consent_advisory, consent_offers } = req.body;
+    const consentUpdate = {};
+    if (consent_display_and_analysis !== undefined) consentUpdate.consent_display_and_analysis = !!consent_display_and_analysis;
+    if (consent_advisory !== undefined) consentUpdate.consent_advisory = !!consent_advisory;
+    if (consent_offers !== undefined) consentUpdate.consent_offers = !!consent_offers;
+
     await contracts.updateAsync({ _id: req.params.id }, {
       $set: {
         category, name: name.trim(),
@@ -171,6 +190,9 @@ app.put('/api/contracts/:id', requireLogin, async (req, res) => {
         start_date: start_date || '',
         end_date: end_date || '',
         details: details && typeof details === 'object' ? details : {},
+        cancellation_deadline: cancellation_deadline || '',
+        renewal_date: renewal_date || '',
+        ...consentUpdate,
         updated_at: new Date().toISOString()
       }
     });
@@ -509,6 +531,7 @@ app.post('/api/admin/contracts', requireAdmin, async (req, res) => {
       start_date: start_date || '',
       end_date: end_date || '',
       details: details && typeof details === 'object' ? details : {},
+      is_own_insurer: true,
       added_by_role: 'admin',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -525,7 +548,8 @@ app.put('/api/admin/contracts/:id', requireAdmin, async (req, res) => {
     const contract = await contracts.findOneAsync({ _id: req.params.id });
     if (!contract) return res.status(404).json({ error: 'Nicht gefunden' });
 
-    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details } = req.body;
+    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
+            cancellation_deadline, renewal_date } = req.body;
     await contracts.updateAsync({ _id: req.params.id }, {
       $set: {
         category, name: name.trim(),
@@ -536,6 +560,8 @@ app.put('/api/admin/contracts/:id', requireAdmin, async (req, res) => {
         start_date: start_date || '',
         end_date: end_date || '',
         details: details && typeof details === 'object' ? details : {},
+        cancellation_deadline: cancellation_deadline || '',
+        renewal_date: renewal_date || '',
         updated_at: new Date().toISOString()
       }
     });

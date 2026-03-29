@@ -15,26 +15,40 @@ function catBadge(cat) {
 
 let allContracts = [];
 
+const EMPTY_TEXTS = {
+  all:          'Noch keine Verträge vorhanden.',
+  own:          'Du hast noch keine eigenen Verträge beim Versicherer hinterlegt.',
+  external:     'Du hast noch keine weiteren Versicherungen hinzugefügt.',
+  subscription: 'Du hast noch keine Abos oder laufenden Kosten hinzugefügt.',
+  other:        'Keine sonstigen Einträge vorhanden.'
+};
+
+function isOwn(c) {
+  return c.category === 'insurance' && (c.is_own_insurer === true || c.added_by_role === 'admin');
+}
+
 function renderGrids() {
   const grids = {
-    all: document.getElementById('grid-all'),
-    insurance: document.getElementById('grid-insurance'),
+    all:          document.getElementById('grid-all'),
+    own:          document.getElementById('grid-own'),
+    external:     document.getElementById('grid-external'),
     subscription: document.getElementById('grid-subscription'),
-    other: document.getElementById('grid-other')
+    other:        document.getElementById('grid-other')
   };
 
   Object.values(grids).forEach(g => g.innerHTML = '');
 
   const filtered = {
-    all: allContracts,
-    insurance: allContracts.filter(c => c.category === 'insurance'),
+    all:          allContracts,
+    own:          allContracts.filter(c => isOwn(c)),
+    external:     allContracts.filter(c => c.category === 'insurance' && !isOwn(c)),
     subscription: allContracts.filter(c => c.category === 'subscription'),
-    other: allContracts.filter(c => c.category === 'other')
+    other:        allContracts.filter(c => c.category === 'other')
   };
 
   for (const [key, list] of Object.entries(filtered)) {
     if (list.length === 0) {
-      grids[key].innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div><p>Keine Verträge in dieser Kategorie</p></div>';
+      grids[key].innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><p>${EMPTY_TEXTS[key]}</p></div>`;
       continue;
     }
     list.forEach(c => grids[key].appendChild(buildCard(c)));
@@ -63,11 +77,16 @@ function buildCard(c) {
   const meta = document.createElement('div');
   meta.className = 'contract-meta';
   meta.appendChild(catBadge(c.category));
-  if (c.added_by_role === 'admin') {
+  if (isOwn(c)) {
     const agBadge = document.createElement('span');
-    agBadge.className = 'badge badge-admin';
-    agBadge.textContent = 'Von Ihrer Agentur';
+    agBadge.className = 'badge badge-own-insurer';
+    agBadge.textContent = 'Beim Versicherer';
     meta.appendChild(agBadge);
+  } else if (c.category === 'insurance' || c.category === 'subscription') {
+    const selfBadge = document.createElement('span');
+    selfBadge.className = 'badge badge-self-added';
+    selfBadge.textContent = 'Selbst hinzugefügt';
+    meta.appendChild(selfBadge);
   }
 
   card.appendChild(name);
@@ -230,11 +249,16 @@ function openInfoModal(c) {
   const badges = document.createElement('div');
   badges.style.cssText = 'padding:8px 0 12px;display:flex;gap:6px;flex-wrap:wrap;';
   const cb = catBadge(c.category); badges.appendChild(cb);
-  if (c.added_by_role === 'admin') {
+  if (isOwn(c)) {
     const ab = document.createElement('span');
-    ab.className = 'badge badge-admin';
-    ab.textContent = 'Von Ihrer Agentur';
+    ab.className = 'badge badge-own-insurer';
+    ab.textContent = 'Beim Versicherer';
     badges.appendChild(ab);
+  } else if (c.category === 'insurance' || c.category === 'subscription') {
+    const sb = document.createElement('span');
+    sb.className = 'badge badge-self-added';
+    sb.textContent = 'Selbst hinzugefügt';
+    badges.appendChild(sb);
   }
   body.appendChild(badges);
 
@@ -257,6 +281,8 @@ function openInfoModal(c) {
     }
   }
 
+  if (c.cancellation_deadline) row('Kündigungsdatum', c.cancellation_deadline);
+  if (c.renewal_date) row('Nächste Verlängerung', c.renewal_date);
   if (c.description) row('Notizen', c.description);
 
   if (c.scan_image) {
@@ -291,6 +317,31 @@ const fExtraFields   = document.getElementById('fExtraFields');
 
 populateInsuranceSelect(fNameSelect);
 
+const consentBlock       = document.getElementById('consentBlock');
+const consentAdvisoryRow = document.getElementById('consentAdvisoryRow');
+const consentOffersRow   = document.getElementById('consentOffersRow');
+const fConsentDisplay    = document.getElementById('fConsentDisplay');
+const fConsentAdvisory   = document.getElementById('fConsentAdvisory');
+const fConsentOffers     = document.getElementById('fConsentOffers');
+const fConsentDisplayTxt = document.getElementById('fConsentDisplayText');
+
+function updateConsentBlock(cat, isEditOfOwnContract) {
+  if (isEditOfOwnContract || (!cat || cat === 'other')) {
+    consentBlock.style.display = 'none';
+    return;
+  }
+  consentBlock.style.display = '';
+  if (cat === 'insurance') {
+    fConsentDisplayTxt.innerHTML = 'Ich willige ein, dass meine eingegebenen Vertragsdaten gespeichert und zur Darstellung sowie Analyse in meinem Kundenportal verwendet werden. <strong>(Erforderlich)</strong>';
+    consentAdvisoryRow.style.display = '';
+    consentOffersRow.style.display   = '';
+  } else if (cat === 'subscription') {
+    fConsentDisplayTxt.innerHTML = 'Ich willige ein, dass meine eingegebenen Abonnements und laufenden Kosten zur Darstellung und Analyse im Kundenportal verwendet werden. <strong>(Erforderlich)</strong>';
+    consentAdvisoryRow.style.display = '';
+    consentOffersRow.style.display   = 'none';
+  }
+}
+
 fCategory.addEventListener('change', () => {
   if (fCategory.value === 'insurance') {
     nameSelectGrp.style.display = '';
@@ -302,6 +353,7 @@ fCategory.addEventListener('change', () => {
     fNameText.setAttribute('required', '');
   }
   fExtraFields.innerHTML = '';
+  updateConsentBlock(fCategory.value, false);
 });
 
 fNameSelect.addEventListener('change', () => {
@@ -343,6 +395,13 @@ function openAdd() {
   fNameText.setAttribute('required', '');
   fNameCustom.style.display    = 'none';
   fExtraFields.innerHTML       = '';
+  // Neue Felder zurücksetzen
+  document.getElementById('fCancellationDeadline').value = '';
+  document.getElementById('fRenewalDate').value = '';
+  fConsentDisplay.checked  = false;
+  fConsentAdvisory.checked = false;
+  fConsentOffers.checked   = false;
+  consentBlock.style.display = 'none';
   modalAlert.classList.add('hidden');
   modal.classList.remove('hidden');
   if (window.location.hash === '#new') history.replaceState(null, '', window.location.pathname);
@@ -357,7 +416,12 @@ function openEdit(c) {
   document.getElementById('fCycle').value     = c.premium_cycle;
   document.getElementById('fStartDate').value = c.start_date || '';
   document.getElementById('fEndDate').value   = c.end_date || '';
+  document.getElementById('fCancellationDeadline').value = c.cancellation_deadline || '';
+  document.getElementById('fRenewalDate').value = c.renewal_date || '';
   document.getElementById('fDescription').value = c.description || '';
+  fConsentDisplay.checked  = !!c.consent_display_and_analysis;
+  fConsentAdvisory.checked = !!c.consent_advisory;
+  fConsentOffers.checked   = !!c.consent_offers;
 
   if (c.category === 'insurance') {
     nameSelectGrp.style.display = '';
@@ -383,6 +447,9 @@ function openEdit(c) {
     fExtraFields.innerHTML      = '';
   }
 
+  // Consent-Block: zeigen falls kein eigener Versicherer-Vertrag
+  updateConsentBlock(c.category, isOwn(c));
+
   modalAlert.classList.add('hidden');
   modal.classList.remove('hidden');
 }
@@ -391,6 +458,7 @@ function closeModal() {
   modal.classList.add('hidden');
   form.reset();
   fExtraFields.innerHTML = '';
+  consentBlock.style.display = 'none';
 }
 
 document.getElementById('addBtn').addEventListener('click', openAdd);
@@ -411,17 +479,32 @@ form.addEventListener('submit', async e => {
   const id = document.getElementById('contractId').value;
   const insuranceType = getSelectedInsuranceType();
   const details = insuranceType ? collectExtraFields(insuranceType, 'f') : {};
+  const cat = fCategory.value;
+
+  // Consent-Validierung für Fremdverträge und Abos
+  if ((cat === 'insurance' || cat === 'subscription') && consentBlock.style.display !== 'none') {
+    if (!fConsentDisplay.checked) {
+      modalAlert.textContent = 'Bitte stimme der Datenspeicherung zu, um fortzufahren.';
+      modalAlert.classList.remove('hidden');
+      return;
+    }
+  }
 
   const body = {
-    category:       fCategory.value,
+    category:       cat,
     name,
     provider:       document.getElementById('fProvider').value,
     premium_amount: document.getElementById('fAmount').value,
     premium_cycle:  document.getElementById('fCycle').value,
     start_date:     document.getElementById('fStartDate').value,
     end_date:       document.getElementById('fEndDate').value,
+    cancellation_deadline: document.getElementById('fCancellationDeadline').value,
+    renewal_date:   document.getElementById('fRenewalDate').value,
     description:    document.getElementById('fDescription').value,
-    details
+    details,
+    consent_display_and_analysis: fConsentDisplay.checked,
+    consent_advisory: fConsentAdvisory.checked,
+    consent_offers:   fConsentOffers.checked
   };
 
   const url    = id ? `/api/contracts/${id}` : '/api/contracts';

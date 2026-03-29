@@ -1,6 +1,10 @@
 // Versicherungsarten mit sparten-spezifischen Pflichtfeldern
 const INSURANCE_TYPES = [
-  { name: 'Haftpflichtversicherung',              fields: [] },
+  { name: 'Privathaftpflicht',                     fields: [] },
+  { name: 'Haus- und Grundbesitzerhaftpflicht',   fields: [] },
+  { name: 'Hundehalterhaftpflicht',               fields: [] },
+  { name: 'Bootshaftpflicht',                     fields: [] },
+  { name: 'Pferdehalterhaftpflicht',              fields: [] },
   { name: 'Kfz-Versicherung',                     fields: [] },
   {
     name: 'Hausratversicherung',
