@@ -491,7 +491,10 @@ app.get('/api/admin/customers', requireAdmin, async (req, res) => {
         birthday: c.birthday || '',
         created_at: c.created_at, contract_count: count,
         crm_status: crmRecord ? crmRecord.status : '',
-        wiedervorlage: crmRecord ? crmRecord.wiedervorlage : ''
+        wiedervorlage: crmRecord ? crmRecord.wiedervorlage : '',
+        consent_given: !!c.consent_given,
+        consent_advisory: !!c.consent_advisory,
+        consent_offers: !!c.consent_offers
       };
     }));
     res.json(result);

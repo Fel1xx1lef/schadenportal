@@ -69,7 +69,7 @@ async function init() {
   renderHints(contracts);
 
   // Empfehlungen laden
-  loadRecommendations();
+  loadRecommendations(me.consent_offers);
 
   // Kostenverteilung
   renderCostChart(insMonthly, subMonthly, othMonthly);
@@ -231,8 +231,16 @@ const INQUIRY_FIELDS = {
 let _currentProfile = {};
 
 // ── Empfehlungen ──────────────────────────────────────────────────────────────
-async function loadRecommendations() {
+async function loadRecommendations(consentOffers) {
   const container = document.getElementById('recommendationsList');
+  if (!consentOffers) {
+    container.innerHTML = `
+      <div style="padding:12px 0;font-size:14px;color:var(--text-secondary);line-height:1.7;">
+        Du hast der Nutzung deiner Daten für Empfehlungen nicht zugestimmt.<br>
+        <a href="consent.html" style="color:var(--primary);font-weight:500;">Einwilligung erteilen →</a>
+      </div>`;
+    return;
+  }
   try {
     const [data, profile] = await Promise.all([
       fetch('/api/recommendations').then(r => r.json()),

@@ -66,6 +66,27 @@ function renderCustomerTable() {
       bdSpan.textContent = bdDays === 0 ? '🎂 Heute!' : `🎂 in ${bdDays}d`;
       tdName.appendChild(bdSpan);
     }
+    // Consent-Badges
+    if (c.consent_given) {
+      const consentWrap = document.createElement('div');
+      consentWrap.style.cssText = 'margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;';
+      const badgeAdvisory = document.createElement('span');
+      badgeAdvisory.title = c.consent_advisory ? 'Einwilligung Beratung: Ja' : 'Einwilligung Beratung: Nein';
+      badgeAdvisory.style.cssText = `font-size:11px;padding:1px 6px;border-radius:10px;font-weight:500;background:${c.consent_advisory ? '#d1fae5' : '#fee2e2'};color:${c.consent_advisory ? '#065f46' : '#991b1b'};`;
+      badgeAdvisory.textContent = c.consent_advisory ? '✓ Beratung' : '✗ Beratung';
+      const badgeOffers = document.createElement('span');
+      badgeOffers.title = c.consent_offers ? 'Einwilligung Angebote: Ja' : 'Einwilligung Angebote: Nein';
+      badgeOffers.style.cssText = `font-size:11px;padding:1px 6px;border-radius:10px;font-weight:500;background:${c.consent_offers ? '#d1fae5' : '#fee2e2'};color:${c.consent_offers ? '#065f46' : '#991b1b'};`;
+      badgeOffers.textContent = c.consent_offers ? '✓ Angebote' : '✗ Angebote';
+      consentWrap.appendChild(badgeAdvisory);
+      consentWrap.appendChild(badgeOffers);
+      tdName.appendChild(consentWrap);
+    } else {
+      const noConsent = document.createElement('div');
+      noConsent.style.cssText = 'font-size:11px;color:#9ca3af;margin-top:3px;';
+      noConsent.textContent = 'Noch keine Einwilligung';
+      tdName.appendChild(noConsent);
+    }
 
     const tdEmail = document.createElement('td');
     tdEmail.textContent = c.email;
