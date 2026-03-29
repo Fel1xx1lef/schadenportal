@@ -59,6 +59,12 @@ async function init() {
   document.getElementById('countExternal').textContent     = externalCount;
   document.getElementById('countSubscription').textContent = contracts.filter(c => c.category === 'subscription').length;
 
+  // Schnell-Hinzufügen: bereits vorhandene Einträge ausblenden
+  const existingNames = new Set(contracts.map(c => c.name));
+  document.querySelectorAll('.btn-quick').forEach(btn => {
+    if (existingNames.has(btn.dataset.name)) btn.style.display = 'none';
+  });
+
   // Hinweise rendern
   renderHints(contracts);
 
