@@ -92,19 +92,19 @@
           <!-- Finanzübersicht -->
           <div class="card animate-in" id="finanzuebersichtDashCard">
             <div class="card-title"><span class="icon">📊</span>Finanzübersicht (monatlich)</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="dash-fz-grid">
               <div style="background:var(--success-light);border:1px solid #c6e9b0;border-radius:var(--radius);padding:14px 16px;">
                 <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--success);margin-bottom:6px;">Einnahmen</div>
-                <div id="dashFzEinnahmen" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:700;color:var(--success);">–</div>
+                <div id="dashFzEinnahmen" class="fz-amount-sm" style="color:var(--success);">–</div>
               </div>
               <div style="background:var(--danger-light);border:1px solid #fca5a5;border-radius:var(--radius);padding:14px 16px;">
                 <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);margin-bottom:6px;">Ausgaben</div>
-                <div id="dashFzAusgaben" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:700;color:var(--danger);">–</div>
+                <div id="dashFzAusgaben" class="fz-amount-sm" style="color:var(--danger);">–</div>
               </div>
             </div>
             <div id="dashFzBilanzBox" style="border-radius:var(--radius);padding:14px 16px;background:var(--bg-subtle);border:1px solid var(--border);margin-bottom:14px;">
               <div id="dashFzBilanzLabel" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">Monatlicher Überschuss</div>
-              <div id="dashFzBilanz" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:700;color:var(--muted);">–</div>
+              <div id="dashFzBilanz" class="fz-amount-sm" style="color:var(--muted);">–</div>
             </div>
             <a href="profile.html" class="btn btn-secondary" style="width:100%;text-align:center;">✏️ Weitere Angaben machen</a>
           </div>

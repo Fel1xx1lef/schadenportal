@@ -994,3 +994,84 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .hint-item:last-child { border-bottom: none; }
 .hint-icon { flex-shrink: 0; font-size: 16px; }
+
+/* ── Responsive Grid-Klassen ──────────────────────────────────────────────── */
+/* Profil: 2-spaltige Karten-Übersicht */
+.profile-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+/* Ausgaben: 2-spaltiges Feld-Raster */
+.ausgaben-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+/* 3-spaltige automatische Vertragsanzeige */
+.auto-contracts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+/* 3-spaltige Finanzübersicht (Profil) */
+.fz-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+/* 2-spaltige Finanzübersicht (Dashboard) */
+.dash-fz-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+/* Großer Euro-Betrag in Finanzübersicht-Boxen */
+.fz-amount {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+}
+.fz-amount-sm {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* ── Tablet (≤ 900px) ─────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .profile-cards-grid { grid-template-columns: 1fr; }
+  .fz-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* ── Mobil (≤ 600px) ──────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* Karten */
+  .card { padding: 16px; }
+  /* Profil-Karten-Grid */
+  .profile-cards-grid { grid-template-columns: 1fr; gap: 0; }
+  /* Ausgaben-Felder einspaltig */
+  .ausgaben-grid { grid-template-columns: 1fr; }
+  /* Finanzübersicht einspaltig */
+  .fz-grid-3 { grid-template-columns: 1fr; }
+  .dash-fz-grid { grid-template-columns: 1fr; }
+  /* Auto-Vertragsanzeige 2-spaltig (passt noch) */
+  .auto-contracts-grid { grid-template-columns: 1fr 1fr; }
+  /* Finanzbeträge kleiner */
+  .fz-amount { font-size: 20px; }
+  .fz-amount-sm { font-size: 18px; }
+  /* Toggle-Buttons: mindestens 44px Tipp-Fläche */
+  .toggle-btn { min-height: 44px; font-size: 15px; }
+  /* Seitenüberschrift */
+  .page-header h1 { font-size: 20px; }
+  /* Modal kompakter */
+  .modal { padding: 20px 16px; border-radius: var(--radius); }
+  /* Tabs scrollen horizontal */
+  .tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .tab-btn { white-space: nowrap; }
+  /* Formulare kompakter */
+  .form-group { margin-bottom: 14px; }
+  /* Stat-Zahlen */
+  .stat-number { font-size: 26px; }
+}
