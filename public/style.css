@@ -668,6 +668,11 @@ tbody tr:last-child td { border-bottom: none; }
   color: #276749;
   border: 1px solid #9ae6b4;
 }
+.alert-warning {
+  background: var(--warning-light);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
 .alert.hidden { display: none; }
 
 /* ── Login Page ──────────────────────────────────────────────────────────── */

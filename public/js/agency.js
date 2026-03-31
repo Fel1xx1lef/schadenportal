@@ -52,3 +52,31 @@
     }
   } catch (e) {}
 })();
+
+// ── 2FA-Hinweis für Kunden ────────────────────────────────────────────────────
+(async function() {
+  const main = document.querySelector('.main');
+  if (!main) return;
+  if (window.location.pathname.endsWith('2fa-setup.html')) return;
+
+  try {
+    const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
+    if (!me || !me.id || me.role === 'admin' || me.totp_enabled) return;
+
+    const banner = document.createElement('div');
+    banner.className = 'alert alert-warning';
+    banner.style.cssText = 'justify-content:space-between;align-items:center;margin-bottom:20px;';
+    banner.innerHTML =
+      '<span>🔐 <strong>Tipp:</strong> Schützen Sie Ihr Konto mit der Zwei-Faktor-Authentifizierung.</span>' +
+      '<span style="display:flex;gap:8px;align-items:center;flex-shrink:0;">' +
+        '<a href="2fa-setup.html" style="font-weight:600;color:#92400e;text-decoration:underline;white-space:nowrap;">Jetzt einrichten</a>' +
+        '<button id="dismiss2faBanner" style="background:none;border:none;cursor:pointer;font-size:18px;line-height:1;color:#92400e;padding:0 2px;" title="Schließen">×</button>' +
+      '</span>';
+
+    main.insertBefore(banner, main.firstChild);
+
+    document.getElementById('dismiss2faBanner').addEventListener('click', () => {
+      banner.remove();
+    });
+  } catch (e) {}
+})();
