@@ -348,21 +348,35 @@ populateInsuranceSelect(fNameSelect);
 
 
 fCategory.addEventListener('change', () => {
+  const fProvider = document.getElementById('fProvider');
   if (fCategory.value === 'insurance') {
     nameSelectGrp.style.display    = '';
     nameTextGrp.style.display      = 'none';
     insurerSelectRow.style.display = '';
     fNameText.removeAttribute('required');
+    fProvider.placeholder = 'Name des Versicherers';
+  } else if (fCategory.value === 'subscription') {
+    nameSelectGrp.style.display    = 'none';
+    nameTextGrp.style.display      = '';
+    insurerSelectRow.style.display = 'none';
+    providerRow.style.display      = 'none';
+    fProvider.readOnly = false;
+    fProvider.style.background = '';
+    selectedInsurer = null;
+    fNameText.setAttribute('required', '');
+    fNameText.placeholder = 'z.B. Netflix, Spotify, Amazon Prime';
   } else {
     nameSelectGrp.style.display    = 'none';
     nameTextGrp.style.display      = '';
     insurerSelectRow.style.display = 'none';
     providerRow.style.display      = '';
-    const fProvider = document.getElementById('fProvider');
+    document.getElementById('providerLabel').textContent = 'Anbieter';
+    fProvider.placeholder = 'Vertragspartner / Anbieter';
     fProvider.readOnly = false;
     fProvider.style.background = '';
     selectedInsurer = null;
     fNameText.setAttribute('required', '');
+    fNameText.placeholder = 'z.B. Strom, Handy, Gym';
   }
   fExtraFields.innerHTML = '';
 });
@@ -407,13 +421,16 @@ function openAdd() {
   fNameCustom.style.display      = 'none';
   fExtraFields.innerHTML         = '';
   insurerSelectRow.style.display = 'none';
-  providerRow.style.display      = '';
+  providerRow.style.display      = 'none'; // wird per Kategorie-Wechsel eingeblendet
   selectedInsurer                = null;
   btnContinentale.classList.remove('btn-primary'); btnContinentale.classList.add('btn-secondary');
   btnOtherInsurer.classList.remove('btn-primary');  btnOtherInsurer.classList.add('btn-secondary');
   const fProvider = document.getElementById('fProvider');
   fProvider.readOnly = false;
   fProvider.style.background = '';
+  fProvider.placeholder = 'Name des Versicherers';
+  document.getElementById('providerLabel').textContent = 'Anbieter';
+  document.getElementById('fNameText').placeholder = 'z.B. Hausratversicherung';
   // Neue Felder zurücksetzen
   document.getElementById('fCancellationDeadline').value = '';
   document.getElementById('fRenewalDate').value = '';
@@ -460,7 +477,6 @@ function openEdit(c) {
     nameSelectGrp.style.display    = 'none';
     nameTextGrp.style.display      = '';
     insurerSelectRow.style.display = 'none';
-    providerRow.style.display      = '';
     selectedInsurer                = null;
     const fProvider = document.getElementById('fProvider');
     fProvider.readOnly = false;
@@ -468,6 +484,15 @@ function openEdit(c) {
     fNameText.setAttribute('required', '');
     fNameText.value             = c.name;
     fExtraFields.innerHTML      = '';
+    if (c.category === 'subscription') {
+      providerRow.style.display = 'none';
+      fNameText.placeholder = 'z.B. Netflix, Spotify, Amazon Prime';
+    } else {
+      providerRow.style.display = '';
+      document.getElementById('providerLabel').textContent = 'Anbieter';
+      fProvider.placeholder = 'Vertragspartner / Anbieter';
+      fNameText.placeholder = 'z.B. Strom, Handy, Gym';
+    }
   }
 
   modalAlert.classList.add('hidden');
@@ -517,10 +542,14 @@ form.addEventListener('submit', async e => {
 
   const isOwnInsurer = cat === 'insurance' && selectedInsurer === 'continentale';
 
+  const providerVal = cat === 'subscription'
+    ? name
+    : (isOwnInsurer ? 'Continentale' : document.getElementById('fProvider').value);
+
   const body = {
     category:       cat,
     name,
-    provider:       isOwnInsurer ? 'Continentale' : document.getElementById('fProvider').value,
+    provider:       providerVal,
     is_own_insurer: isOwnInsurer,
     premium_amount: document.getElementById('fAmount').value,
     premium_cycle:  document.getElementById('fCycle').value,

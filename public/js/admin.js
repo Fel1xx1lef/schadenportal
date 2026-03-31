@@ -218,13 +218,30 @@ const acExtraFields   = document.getElementById('acExtraFields');
 
 populateInsuranceSelect(acNameSelect);
 
+const acProviderGroup = document.getElementById('acProviderGroup');
+const acProviderLabel = document.getElementById('acProviderLabel');
+const acProviderInput = document.getElementById('acProvider');
+
 acCategory.addEventListener('change', () => {
   if (acCategory.value === 'insurance') {
     acNameSelectGrp.style.display = '';
     acNameTextGrp.style.display   = 'none';
+    acProviderGroup.style.display = '';
+    acProviderLabel.textContent   = 'Versicherer';
+    acProviderInput.placeholder   = 'z.B. Continentale';
+    acNameText.placeholder        = 'z.B. Hausratversicherung';
+  } else if (acCategory.value === 'subscription') {
+    acNameSelectGrp.style.display = 'none';
+    acNameTextGrp.style.display   = '';
+    acProviderGroup.style.display = 'none';
+    acNameText.placeholder        = 'z.B. Netflix, Spotify, Amazon Prime';
   } else {
     acNameSelectGrp.style.display = 'none';
     acNameTextGrp.style.display   = '';
+    acProviderGroup.style.display = '';
+    acProviderLabel.textContent   = 'Anbieter';
+    acProviderInput.placeholder   = 'Vertragspartner / Anbieter';
+    acNameText.placeholder        = 'z.B. Strom, Handy, Gym';
   }
   acExtraFields.innerHTML = '';
 });
@@ -270,11 +287,16 @@ document.getElementById('addContractForm').addEventListener('submit', async e =>
   const insuranceType = getAcInsuranceType();
   const details = insuranceType ? collectExtraFields(insuranceType, 'ac') : {};
 
+  const acCat = acCategory.value;
+  const acProviderVal = acCat === 'subscription'
+    ? name
+    : document.getElementById('acProvider').value;
+
   const body = {
     user_id:        document.getElementById('acCustomer').value,
-    category:       acCategory.value,
+    category:       acCat,
     name,
-    provider:       document.getElementById('acProvider').value,
+    provider:       acProviderVal,
     premium_amount: document.getElementById('acAmount').value,
     premium_cycle:  document.getElementById('acCycle').value,
     start_date:     document.getElementById('acStartDate').value,
