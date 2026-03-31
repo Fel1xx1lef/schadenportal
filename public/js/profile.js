@@ -2,7 +2,8 @@ const PROFILE_FIELDS = [
   'full_name', 'birth_date', 'marital_status', 'spouse_name',
   'phone', 'mobile', 'gross_income', 'net_income',
   'health_insurance_type', 'health_insurance_provider',
-  'beruf', 'berufsgruppe', 'wohneigentum'
+  'beruf', 'berufsgruppe', 'wohneigentum',
+  'rente', 'minijob', 'kindergeld', 'andere_einkuenfte'
 ];
 
 function calculateCompletion(profile) {
@@ -28,6 +29,60 @@ function toggleSpouseField() {
   const status = document.getElementById('fMaritalStatus').value;
   document.getElementById('spouseGroup').style.display =
     status === 'verheiratet' ? 'block' : 'none';
+}
+
+function formatEuro(value) {
+  return '€ ' + value.toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function updateFinanzuebersicht() {
+  const val = id => parseFloat(document.getElementById(id).value) || 0;
+
+  const einnahmen =
+    val('fNetIncome') +
+    val('fRente') +
+    val('fMinijob') +
+    val('fKindergeld') +
+    val('fAndereEinkuenfte');
+
+  const ausgaben =
+    val('fAusgabenMiete') +
+    val('fAusgabenNebenkosten') +
+    val('fAusgabenLebensmittel') +
+    val('fAusgabenMobilitaet') +
+    val('fAusgabenTelekommunikation') +
+    val('fAusgabenVersicherungen') +
+    val('fAusgabenFreizeit') +
+    val('fAusgabenKleidung') +
+    val('fAusgabenSonstiges');
+
+  const bilanz = einnahmen - ausgaben;
+  const isPositive = bilanz >= 0;
+
+  document.getElementById('fzGesamteinnahmen').textContent = formatEuro(einnahmen);
+  document.getElementById('fzGesamtausgaben').textContent  = formatEuro(ausgaben);
+  document.getElementById('fzBilanz').textContent          = formatEuro(bilanz);
+
+  const bilanzBox   = document.getElementById('fzBilanzBox');
+  const bilanzLabel = document.getElementById('fzBilanzLabel');
+  const bilanzVal   = document.getElementById('fzBilanz');
+
+  if (isPositive) {
+    bilanzBox.style.background  = 'var(--success-light)';
+    bilanzBox.style.borderColor = '#c6e9b0';
+    bilanzLabel.style.color     = 'var(--success)';
+    bilanzLabel.textContent     = 'Monatlicher Überschuss';
+    bilanzVal.style.color       = 'var(--success)';
+  } else {
+    bilanzBox.style.background  = 'var(--danger-light)';
+    bilanzBox.style.borderColor = '#fca5a5';
+    bilanzLabel.style.color     = 'var(--danger)';
+    bilanzLabel.textContent     = 'Monatliches Defizit';
+    bilanzVal.style.color       = 'var(--danger)';
+  }
 }
 
 async function init() {
@@ -58,9 +113,25 @@ async function init() {
   document.getElementById('fBerufsgruppe').value = profile.berufsgruppe || '';
   document.getElementById('fWohneigentum').value = profile.wohneigentum || '';
 
+  document.getElementById('fRente').value             = profile.rente             || '';
+  document.getElementById('fMinijob').value           = profile.minijob           || '';
+  document.getElementById('fKindergeld').value        = profile.kindergeld        || '';
+  document.getElementById('fAndereEinkuenfte').value  = profile.andere_einkuenfte || '';
+
+  document.getElementById('fAusgabenMiete').value             = profile.ausgaben_miete             || '';
+  document.getElementById('fAusgabenNebenkosten').value       = profile.ausgaben_nebenkosten       || '';
+  document.getElementById('fAusgabenLebensmittel').value      = profile.ausgaben_lebensmittel      || '';
+  document.getElementById('fAusgabenMobilitaet').value        = profile.ausgaben_mobilitaet        || '';
+  document.getElementById('fAusgabenTelekommunikation').value = profile.ausgaben_telekommunikation || '';
+  document.getElementById('fAusgabenVersicherungen').value    = profile.ausgaben_versicherungen    || '';
+  document.getElementById('fAusgabenFreizeit').value          = profile.ausgaben_freizeit          || '';
+  document.getElementById('fAusgabenKleidung').value          = profile.ausgaben_kleidung          || '';
+  document.getElementById('fAusgabenSonstiges').value         = profile.ausgaben_sonstiges         || '';
+
   if (profile.health_insurance_type) setKvType(profile.health_insurance_type);
   toggleSpouseField();
   updateCompletionBar(profile);
+  updateFinanzuebersicht();
 
   // KV-Toggle
   document.querySelectorAll('#kvToggle .toggle-btn').forEach(btn => {
@@ -69,6 +140,16 @@ async function init() {
 
   // Ehepartner-Feld ein/ausblenden
   document.getElementById('fMaritalStatus').addEventListener('change', toggleSpouseField);
+
+  // Live-Berechnung Finanzübersicht
+  const FINANZ_IDS = [
+    'fNetIncome', 'fRente', 'fMinijob', 'fKindergeld', 'fAndereEinkuenfte',
+    'fAusgabenMiete', 'fAusgabenNebenkosten', 'fAusgabenLebensmittel',
+    'fAusgabenMobilitaet', 'fAusgabenTelekommunikation', 'fAusgabenVersicherungen',
+    'fAusgabenFreizeit', 'fAusgabenKleidung', 'fAusgabenSonstiges'
+  ];
+  FINANZ_IDS.forEach(id =>
+    document.getElementById(id).addEventListener('input', updateFinanzuebersicht));
 
   // Formular speichern
   document.getElementById('profileForm').addEventListener('submit', async e => {
@@ -94,7 +175,20 @@ async function init() {
       health_insurance_provider:  document.getElementById('fKvProvider').value,
       beruf:                      document.getElementById('fBeruf').value,
       berufsgruppe:               document.getElementById('fBerufsgruppe').value,
-      wohneigentum:               document.getElementById('fWohneigentum').value
+      wohneigentum:               document.getElementById('fWohneigentum').value,
+      rente:                      document.getElementById('fRente').value,
+      minijob:                    document.getElementById('fMinijob').value,
+      kindergeld:                 document.getElementById('fKindergeld').value,
+      andere_einkuenfte:          document.getElementById('fAndereEinkuenfte').value,
+      ausgaben_miete:             document.getElementById('fAusgabenMiete').value,
+      ausgaben_nebenkosten:       document.getElementById('fAusgabenNebenkosten').value,
+      ausgaben_lebensmittel:      document.getElementById('fAusgabenLebensmittel').value,
+      ausgaben_mobilitaet:        document.getElementById('fAusgabenMobilitaet').value,
+      ausgaben_telekommunikation: document.getElementById('fAusgabenTelekommunikation').value,
+      ausgaben_versicherungen:    document.getElementById('fAusgabenVersicherungen').value,
+      ausgaben_freizeit:          document.getElementById('fAusgabenFreizeit').value,
+      ausgaben_kleidung:          document.getElementById('fAusgabenKleidung').value,
+      ausgaben_sonstiges:         document.getElementById('fAusgabenSonstiges').value
     };
 
     const res = await fetch('/api/profile', {

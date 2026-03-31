@@ -309,7 +309,20 @@ app.get('/api/profile', requireLogin, async (req, res) => {
       net_income: user.net_income || '',
       beruf: user.beruf || '',
       berufsgruppe: user.berufsgruppe || '',
-      wohneigentum: user.wohneigentum || ''
+      wohneigentum: user.wohneigentum || '',
+      rente:                      user.rente || '',
+      minijob:                    user.minijob || '',
+      kindergeld:                 user.kindergeld || '',
+      andere_einkuenfte:          user.andere_einkuenfte || '',
+      ausgaben_miete:             user.ausgaben_miete || '',
+      ausgaben_nebenkosten:       user.ausgaben_nebenkosten || '',
+      ausgaben_lebensmittel:      user.ausgaben_lebensmittel || '',
+      ausgaben_mobilitaet:        user.ausgaben_mobilitaet || '',
+      ausgaben_telekommunikation: user.ausgaben_telekommunikation || '',
+      ausgaben_versicherungen:    user.ausgaben_versicherungen || '',
+      ausgaben_freizeit:          user.ausgaben_freizeit || '',
+      ausgaben_kleidung:          user.ausgaben_kleidung || '',
+      ausgaben_sonstiges:         user.ausgaben_sonstiges || ''
     });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -318,13 +331,24 @@ app.get('/api/profile', requireLogin, async (req, res) => {
 
 app.put('/api/profile', requireLogin, async (req, res) => {
   try {
+    const NUMERIC_FIELDS = new Set([
+      'gross_income', 'net_income',
+      'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
+      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_lebensmittel',
+      'ausgaben_mobilitaet', 'ausgaben_telekommunikation', 'ausgaben_versicherungen',
+      'ausgaben_freizeit', 'ausgaben_kleidung', 'ausgaben_sonstiges'
+    ]);
     const allowed = ['full_name', 'phone', 'mobile', 'birth_date', 'marital_status',
       'spouse_name', 'health_insurance_type', 'health_insurance_provider',
-      'gross_income', 'net_income', 'beruf', 'berufsgruppe', 'wohneigentum'];
+      'gross_income', 'net_income', 'beruf', 'berufsgruppe', 'wohneigentum',
+      'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
+      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_lebensmittel',
+      'ausgaben_mobilitaet', 'ausgaben_telekommunikation', 'ausgaben_versicherungen',
+      'ausgaben_freizeit', 'ausgaben_kleidung', 'ausgaben_sonstiges'];
     const update = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
-        update[key] = key === 'gross_income' || key === 'net_income'
+        update[key] = NUMERIC_FIELDS.has(key)
           ? (req.body[key] === '' ? '' : parseFloat(req.body[key]))
           : String(req.body[key]).trim();
       }

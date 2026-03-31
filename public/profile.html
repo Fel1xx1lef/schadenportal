@@ -154,6 +154,23 @@
               <label>Nettoeinkommen (€ / Monat)</label>
               <input type="number" id="fNetIncome" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>
+            <p style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 12px;">Weitere Einkommensquellen</p>
+            <div class="form-group">
+              <label>Rente (€ / Monat)</label>
+              <input type="number" id="fRente" class="form-control" placeholder="0,00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Minijob (€ / Monat)</label>
+              <input type="number" id="fMinijob" class="form-control" placeholder="0,00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Kindergeld (€ / Monat)</label>
+              <input type="number" id="fKindergeld" class="form-control" placeholder="0,00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Andere Einkünfte (€ / Monat)</label>
+              <input type="number" id="fAndereEinkuenfte" class="form-control" placeholder="0,00" min="0" step="0.01">
+            </div>
           </div>
 
           <!-- Krankenversicherung -->
@@ -188,6 +205,71 @@
             </div>
           </div>
 
+          <!-- Ausgaben -->
+          <div class="card animate-in" style="grid-column: 1 / -1;">
+            <div class="card-title"><span class="icon">📉</span>Monatliche Ausgaben</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+              <div class="form-group">
+                <label>Miete / Hypothek (€ / Monat)</label>
+                <input type="number" id="fAusgabenMiete" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Nebenkosten (Strom, Wasser, Gas) (€ / Monat)</label>
+                <input type="number" id="fAusgabenNebenkosten" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Lebensmittel / Verpflegung (€ / Monat)</label>
+                <input type="number" id="fAusgabenLebensmittel" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Mobilität (Auto, ÖPNV) (€ / Monat)</label>
+                <input type="number" id="fAusgabenMobilitaet" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Telekommunikation (Handy, Internet) (€ / Monat)</label>
+                <input type="number" id="fAusgabenTelekommunikation" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Versicherungen gesamt (€ / Monat)</label>
+                <input type="number" id="fAusgabenVersicherungen" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Freizeit / Unterhaltung (€ / Monat)</label>
+                <input type="number" id="fAusgabenFreizeit" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Kleidung (€ / Monat)</label>
+                <input type="number" id="fAusgabenKleidung" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+              <div class="form-group">
+                <label>Sonstiges (€ / Monat)</label>
+                <input type="number" id="fAusgabenSonstiges" class="form-control" placeholder="0,00" min="0" step="0.01">
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Finanzübersicht -->
+        <div class="card animate-in" style="margin-top:24px;">
+          <div class="card-title"><span class="icon">📊</span>Finanzübersicht (monatlich)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+            <div style="background:var(--success-light);border:1px solid #c6e9b0;border-radius:var(--radius);padding:18px 20px;">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--success);margin-bottom:8px;">Gesamteinnahmen</div>
+              <div id="fzGesamteinnahmen" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:700;color:var(--success);">€ 0,00</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Netto + weitere Quellen</div>
+            </div>
+            <div style="background:var(--danger-light);border:1px solid #fca5a5;border-radius:var(--radius);padding:18px 20px;">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);margin-bottom:8px;">Gesamtausgaben</div>
+              <div id="fzGesamtausgaben" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:700;color:var(--danger);">€ 0,00</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Alle Ausgabenposten</div>
+            </div>
+            <div id="fzBilanzBox" style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;">
+              <div id="fzBilanzLabel" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Monatlicher Überschuss</div>
+              <div id="fzBilanz" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:700;color:var(--muted);">€ 0,00</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Einnahmen − Ausgaben</div>
+            </div>
+          </div>
         </div>
 
         <div style="margin-top:24px;">
