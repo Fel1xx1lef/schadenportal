@@ -183,6 +183,35 @@ async function init() {
   updateCompletionBar(profile);
   updateFinanzuebersicht();
 
+  // 2FA Status
+  if (me.totp_enabled) {
+    document.getElementById('twofa-status-enabled').classList.remove('hidden');
+  } else {
+    document.getElementById('twofa-status-disabled').classList.remove('hidden');
+  }
+
+  document.getElementById('btnDisable2fa').addEventListener('click', () => {
+    document.getElementById('disableForm').classList.toggle('hidden');
+  });
+
+  document.getElementById('btnConfirmDisable').addEventListener('click', async () => {
+    const password = document.getElementById('disablePassword').value;
+    const alertEl = document.getElementById('twofa-alert');
+    alertEl.classList.add('hidden');
+    const resD = await fetch('/api/auth/2fa/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const dataD = await resD.json();
+    if (!resD.ok) {
+      alertEl.textContent = dataD.error;
+      alertEl.classList.remove('hidden');
+    } else {
+      window.location.reload();
+    }
+  });
+
   // KV-Toggle
   document.querySelectorAll('#kvToggle .toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => setKvType(btn.dataset.kv));

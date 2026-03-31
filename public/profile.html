@@ -322,6 +322,31 @@
           <button type="submit" class="btn btn-primary" id="saveBtn">💾 Profil speichern</button>
         </div>
       </form>
+
+      <!-- 2FA Karte -->
+      <div class="card animate-in" style="margin-top:24px;" id="twoFactorCard">
+        <div class="card-title"><span class="icon">🔐</span>Zwei-Faktor-Authentifizierung</div>
+        <div id="twofa-status-enabled" class="hidden">
+          <p>2FA ist <strong>aktiviert</strong>. Ihr Konto ist durch einen Authentifizierungscode geschützt.</p>
+          <div style="margin-top:16px;">
+            <button class="btn btn-secondary" id="btnDisable2fa">2FA deaktivieren</button>
+          </div>
+          <div id="disableForm" class="hidden" style="margin-top:16px;">
+            <div class="form-group">
+              <label>Aktuelles Passwort bestätigen</label>
+              <input type="password" id="disablePassword" class="form-control" placeholder="Ihr Passwort">
+            </div>
+            <button class="btn btn-danger" id="btnConfirmDisable">Deaktivieren bestätigen</button>
+          </div>
+        </div>
+        <div id="twofa-status-disabled" class="hidden">
+          <p>2FA ist <strong>nicht aktiviert</strong>. Erhöhen Sie die Sicherheit Ihres Kontos.</p>
+          <div style="margin-top:16px;">
+            <a href="2fa-setup.html" class="btn btn-primary">2FA einrichten</a>
+          </div>
+        </div>
+        <div id="twofa-alert" class="alert alert-error hidden" style="margin-top:12px;"></div>
+      </div>
     </main>
   </div>
 </div>

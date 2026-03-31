@@ -1,3 +1,11 @@
+// ── 2FA Guard ─────────────────────────────────────────────────────────────────
+(async function() {
+  const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
+  if (!me || !me.id) { window.location.href = 'login.html'; return; }
+  if (me.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+  if (!me.totp_enabled) { window.location.href = '2fa-setup.html'; return; }
+})();
+
 const CYCLE_LABEL = { monthly: '/ Monat', quarterly: '/ Quartal', halfyearly: '/ Halbjahr', yearly: '/ Jahr' };
 const CAT_LABEL   = { insurance: 'Versicherung', subscription: 'Abonnement', other: 'Sonstiges' };
 

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2FA-Verifizierung – Kundenportal Schindelhauer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-split">
+
+  <!-- Linke Markenseite -->
+  <div class="login-brand">
+    <div class="login-brand-logo">
+      <div class="login-brand-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
+        </svg>
+      </div>
+      <div class="login-brand-name">
+        Felix Schindelhauer GmbH
+        <span>Continentale Geschäftsstelle</span>
+      </div>
+    </div>
+
+    <h1 class="login-brand-headline">
+      Sicherheit,<br>die <em>schützt.</em>
+    </h1>
+    <p class="login-brand-tagline">
+      Zwei-Faktor-Authentifizierung — ein zusätzlicher Schutz für Ihr Konto.
+    </p>
+
+    <div class="login-brand-dots">
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <!-- Rechte Formularseite -->
+  <div class="login-form-side">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>Zwei-Faktor-Authentifizierung</h1>
+        <p>Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.</p>
+      </div>
+
+      <div id="alert" class="alert alert-error hidden"></div>
+
+      <form id="twoFAForm">
+        <div class="form-group">
+          <label for="token">Authentifizierungscode</label>
+          <input type="text" id="token" class="form-control" inputmode="numeric" pattern="[0-9 ]{6,7}"
+            maxlength="7" autocomplete="one-time-code" placeholder="000 000" style="letter-spacing:0.2em;font-size:1.2em;text-align:center;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" id="verifyBtn">
+          Code bestätigen
+        </button>
+      </form>
+
+      <p class="text-muted text-center mt-16">
+        <a href="login.html" style="color:var(--muted);font-size:13px;">Zurück zum Login</a>
+      </p>
+    </div>
+  </div>
+
+</div>
+<script src="js/agency.js"></script>
+<script src="js/2fa-verify.js"></script>
+</body>
+</html>

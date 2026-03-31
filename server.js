@@ -4,6 +4,8 @@ const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const path = require('path');
 const { users, contracts, messages, crm, activityLog, settings, tasks, consultations, appointments, seedAdmin, seedSettings } = require('./db');
 const { requireLogin, requireAdmin } = require('./middleware/auth');
@@ -55,6 +57,12 @@ const loginLimiter = rateLimit({
   message: { error: 'Zu viele Loginversuche. Bitte 15 Minuten warten.' }
 });
 
+const twoFALimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Zu viele Versuche. Bitte 15 Minuten warten.' }
+});
+
 // ── Auth Routes ───────────────────────────────────────────────────────────────
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
@@ -71,9 +79,20 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       req.session.regenerate(err => err ? reject(err) : resolve())
     );
 
+    if (user.totp_enabled) {
+      req.session.twofa_pending = true;
+      req.session.twofa_userId = user._id;
+      req.session.twofa_expires = Date.now() + (5 * 60 * 1000);
+      return res.json({ ok: true, requires_2fa: true });
+    }
+
     req.session.userId = user._id;
     req.session.userRole = user.role;
     req.session.userEmail = user.email;
+
+    if (user.role === 'admin' && !user.totp_enabled) {
+      return res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!user.consent_given, requires_2fa_setup: true });
+    }
 
     res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!user.consent_given });
   } catch (err) {
@@ -91,7 +110,8 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
     res.json({ id: user._id, email: user.email, full_name: user.full_name, role: user.role, phone: user.phone || '',
-      consent_given: !!user.consent_given, consent_advisory: !!user.consent_advisory, consent_offers: !!user.consent_offers });
+      consent_given: !!user.consent_given, consent_advisory: !!user.consent_advisory, consent_offers: !!user.consent_offers,
+      totp_enabled: !!user.totp_enabled });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
   }
@@ -144,6 +164,146 @@ app.post('/api/auth/change-password', requireLogin, async (req, res) => {
     await users.updateAsync({ _id: req.session.userId }, { $set: { password_hash: hash } });
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// ── Two-Factor Authentication Routes ─────────────────────────────────────────
+
+app.get('/api/auth/2fa/status', (req, res) => {
+  res.json({ pending: !!req.session.twofa_pending });
+});
+
+app.get('/api/auth/2fa/setup', requireLogin, async (req, res) => {
+  try {
+    const user = await users.findOneAsync({ _id: req.session.userId });
+    if (!user) return res.status(401).json({ error: 'Session ungültig' });
+
+    const secret = speakeasy.generateSecret({
+      name: 'Schindelhauer Kundenportal (' + user.email + ')',
+      issuer: 'Felix Schindelhauer GmbH',
+      length: 20
+    });
+
+    await users.updateAsync({ _id: user._id }, { $set: {
+      totp_secret_temp: secret.base32,
+      totp_setup_pending: true
+    }});
+
+    const qr = await QRCode.toDataURL(secret.otpauth_url);
+    res.json({ qr, secret: secret.base32 });
+  } catch (err) {
+    console.error('2FA Setup-Fehler:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.post('/api/auth/2fa/confirm', requireLogin, twoFALimiter, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Code erforderlich' });
+
+    const user = await users.findOneAsync({ _id: req.session.userId });
+    if (!user || !user.totp_setup_pending || !user.totp_secret_temp) {
+      return res.status(400).json({ error: '2FA-Setup nicht gestartet' });
+    }
+
+    const valid = speakeasy.totp.verify({
+      secret: user.totp_secret_temp,
+      encoding: 'base32',
+      token: token.replace(/\s/g, ''),
+      window: 1
+    });
+
+    if (!valid) return res.status(401).json({ error: 'Ungültiger Code. Bitte erneut versuchen.' });
+
+    await users.updateAsync({ _id: user._id }, {
+      $set: {
+        totp_secret: user.totp_secret_temp,
+        totp_enabled: true,
+        totp_enabled_at: new Date().toISOString()
+      },
+      $unset: { totp_secret_temp: true, totp_setup_pending: true }
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('2FA Bestätigungs-Fehler:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
+  try {
+    if (!req.session.twofa_pending || !req.session.twofa_userId) {
+      return res.status(401).json({ error: 'Keine ausstehende 2FA-Verifizierung' });
+    }
+
+    if (Date.now() > req.session.twofa_expires) {
+      req.session.destroy(() => {});
+      return res.status(401).json({ error: 'Sitzung abgelaufen. Bitte neu einloggen.' });
+    }
+
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Code erforderlich' });
+
+    const user = await users.findOneAsync({ _id: req.session.twofa_userId });
+    if (!user || !user.totp_enabled) return res.status(401).json({ error: 'Session ungültig' });
+
+    if (user.totp_last_used_token === token.replace(/\s/g, '')) {
+      return res.status(401).json({ error: 'Code bereits verwendet. Bitte warten Sie auf den nächsten Code.' });
+    }
+
+    const valid = speakeasy.totp.verify({
+      secret: user.totp_secret,
+      encoding: 'base32',
+      token: token.replace(/\s/g, ''),
+      window: 1
+    });
+
+    if (!valid) return res.status(401).json({ error: 'Ungültiger Code.' });
+
+    await users.updateAsync({ _id: user._id }, { $set: { totp_last_used_token: token.replace(/\s/g, '') } });
+
+    const userId = req.session.twofa_userId;
+    await new Promise((resolve, reject) =>
+      req.session.regenerate(err => err ? reject(err) : resolve())
+    );
+
+    req.session.userId = user._id;
+    req.session.userRole = user.role;
+    req.session.userEmail = user.email;
+
+    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!user.consent_given });
+  } catch (err) {
+    console.error('2FA Verify-Fehler:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.post('/api/auth/2fa/disable', requireLogin, async (req, res) => {
+  try {
+    const user = await users.findOneAsync({ _id: req.session.userId });
+    if (!user) return res.status(401).json({ error: 'Session ungültig' });
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Admins können 2FA nicht deaktivieren.' });
+    }
+
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Passwort erforderlich' });
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Passwort falsch' });
+
+    await users.updateAsync({ _id: user._id }, {
+      $set: { totp_enabled: false },
+      $unset: { totp_secret: true, totp_last_used_token: true, totp_enabled_at: true }
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('2FA Disable-Fehler:', err);
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
