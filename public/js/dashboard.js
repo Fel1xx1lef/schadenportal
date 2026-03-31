@@ -32,8 +32,11 @@ async function init() {
     window.location.href = 'login.html';
   });
 
-  // Verträge laden
-  const contracts = await fetch('/api/contracts').then(r => r.json()).catch(() => []);
+  // Verträge + Profil laden
+  const [contracts, profile] = await Promise.all([
+    fetch('/api/contracts').then(r => r.json()).catch(() => []),
+    fetch('/api/profile').then(r => r.json()).catch(() => ({}))
+  ]);
 
   // Kostenberechnung
   let totalMonthly = 0, insMonthly = 0, subMonthly = 0, othMonthly = 0;
@@ -65,14 +68,57 @@ async function init() {
     if (existingNames.has(btn.dataset.name)) btn.style.display = 'none';
   });
 
+  // Finanzübersicht
+  renderFinanzuebersicht(profile, insMonthly, subMonthly, othMonthly);
+
   // Hinweise rendern
-  renderHints(contracts);
+  renderHints(contracts, profile);
 
   // Empfehlungen laden
   loadRecommendations(me.consent_offers);
 
   // Kostenverteilung
   renderCostChart(insMonthly, subMonthly, othMonthly);
+}
+
+function renderFinanzuebersicht(profile, insMonthly, subMonthly, othMonthly) {
+  const v = key => parseFloat(profile[key]) || 0;
+
+  const einnahmen =
+    v('net_income') + v('rente') + v('minijob') + v('kindergeld') + v('andere_einkuenfte');
+
+  const ausgaben =
+    v('ausgaben_miete') + v('ausgaben_nebenkosten') + v('ausgaben_lebensmittel') +
+    v('ausgaben_mobilitaet') + v('ausgaben_telekommunikation') +
+    v('ausgaben_freizeit') + v('ausgaben_kleidung') +
+    insMonthly + subMonthly + othMonthly;
+
+  const bilanz = einnahmen - ausgaben;
+  const isPos  = bilanz >= 0;
+
+  const fmtEuro = n => '€ ' + n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  document.getElementById('dashFzEinnahmen').textContent = fmtEuro(einnahmen);
+  document.getElementById('dashFzAusgaben').textContent  = fmtEuro(ausgaben);
+  document.getElementById('dashFzBilanz').textContent    = fmtEuro(bilanz);
+
+  const box   = document.getElementById('dashFzBilanzBox');
+  const label = document.getElementById('dashFzBilanzLabel');
+  const val   = document.getElementById('dashFzBilanz');
+
+  if (isPos) {
+    box.style.background   = 'var(--success-light)';
+    box.style.borderColor  = '#c6e9b0';
+    label.style.color      = 'var(--success)';
+    label.textContent      = 'Monatlicher Überschuss';
+    val.style.color        = 'var(--success)';
+  } else {
+    box.style.background   = 'var(--danger-light)';
+    box.style.borderColor  = '#fca5a5';
+    label.style.color      = 'var(--danger)';
+    label.textContent      = 'Monatliches Defizit';
+    val.style.color        = 'var(--danger)';
+  }
 }
 
 function renderCostChart(ins, sub, oth) {
@@ -141,10 +187,23 @@ function renderCostChart(ins, sub, oth) {
   container.appendChild(totalRow);
 }
 
-function renderHints(contracts) {
+function renderHints(contracts, profile) {
   const hintsCard = document.getElementById('hintsCard');
   const hintsList = document.getElementById('hintsList');
   const hints = [];
+
+  // Fehlende Einkommensangaben
+  const EINKUNFT_HINTS = [
+    { aktiv: 'rente_aktiv',            label: 'Rente' },
+    { aktiv: 'minijob_aktiv',          label: 'Minijob-Einkommen' },
+    { aktiv: 'kindergeld_aktiv',       label: 'Kindergeld' },
+    { aktiv: 'andere_einkuenfte_aktiv', label: 'andere Einkünfte' }
+  ];
+  EINKUNFT_HINTS.forEach(({ aktiv, label }) => {
+    if (!profile[aktiv]) {
+      hints.push({ icon: '💡', text: `Übrigens: Du hast noch nicht angegeben, ob du <strong>${label}</strong> bekommst. <a href="profile.html" style="color:var(--primary);text-decoration:underline;">Jetzt angeben →</a>` });
+    }
+  });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

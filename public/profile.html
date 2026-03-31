@@ -155,19 +155,55 @@
               <input type="number" id="fNetIncome" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>
             <p style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 12px;">Weitere Einkommensquellen</p>
+            <!-- Rente -->
             <div class="form-group">
+              <label>Bekommst du Rente?</label>
+              <div class="toggle-group" id="renteToggle" style="margin-top:6px;">
+                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
+                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
+              </div>
+              <input type="hidden" id="fRenteAktiv" value="">
+            </div>
+            <div id="renteAmountGroup" class="form-group" style="display:none;">
               <label>Rente (€ / Monat)</label>
               <input type="number" id="fRente" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>
+            <!-- Minijob -->
             <div class="form-group">
+              <label>Hast du einen Minijob?</label>
+              <div class="toggle-group" id="minijobToggle" style="margin-top:6px;">
+                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
+                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
+              </div>
+              <input type="hidden" id="fMinijobAktiv" value="">
+            </div>
+            <div id="minijobAmountGroup" class="form-group" style="display:none;">
               <label>Minijob (€ / Monat)</label>
               <input type="number" id="fMinijob" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>
+            <!-- Kindergeld -->
             <div class="form-group">
+              <label>Bekommst du Kindergeld?</label>
+              <div class="toggle-group" id="kindergeldToggle" style="margin-top:6px;">
+                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
+                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
+              </div>
+              <input type="hidden" id="fKindergeldAktiv" value="">
+            </div>
+            <div id="kindergeldAmountGroup" class="form-group" style="display:none;">
               <label>Kindergeld (€ / Monat)</label>
               <input type="number" id="fKindergeld" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>
+            <!-- Andere Einkünfte -->
             <div class="form-group">
+              <label>Hast du andere Einkünfte?</label>
+              <div class="toggle-group" id="andereEinkuenfteToggle" style="margin-top:6px;">
+                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
+                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
+              </div>
+              <input type="hidden" id="fAndereEinkuenfteAktiv" value="">
+            </div>
+            <div id="andereEinkuenfteAmountGroup" class="form-group" style="display:none;">
               <label>Andere Einkünfte (€ / Monat)</label>
               <input type="number" id="fAndereEinkuenfte" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>

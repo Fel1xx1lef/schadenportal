@@ -49,6 +49,31 @@ function formatEuro(value) {
 // Monatliche Vertragskosten (werden beim Init befüllt)
 let contractInsurance = 0, contractAbos = 0, contractSonstiges = 0;
 
+// Ja/Nein-Toggle für Einkommensquellen
+const EINKUNFT_FELDER = [
+  { profileKey: 'rente_aktiv',            toggleId: 'renteToggle',             hiddenId: 'fRenteAktiv',             groupId: 'renteAmountGroup' },
+  { profileKey: 'minijob_aktiv',          toggleId: 'minijobToggle',           hiddenId: 'fMinijobAktiv',           groupId: 'minijobAmountGroup' },
+  { profileKey: 'kindergeld_aktiv',       toggleId: 'kindergeldToggle',        hiddenId: 'fKindergeldAktiv',        groupId: 'kindergeldAmountGroup' },
+  { profileKey: 'andere_einkuenfte_aktiv', toggleId: 'andereEinkuenfteToggle', hiddenId: 'fAndereEinkuenfteAktiv',  groupId: 'andereEinkuenfteAmountGroup' }
+];
+
+function setEinkunftAktiv(feld, value) {
+  document.getElementById(feld.hiddenId).value = value;
+  document.querySelectorAll('#' + feld.toggleId + ' .toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.aktiv === value);
+  });
+  document.getElementById(feld.groupId).style.display = value === 'ja' ? 'block' : 'none';
+  updateFinanzuebersicht();
+}
+
+function setupEinkunftToggles() {
+  EINKUNFT_FELDER.forEach(feld => {
+    document.querySelectorAll('#' + feld.toggleId + ' .toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => setEinkunftAktiv(feld, btn.dataset.aktiv));
+    });
+  });
+}
+
 function updateFinanzuebersicht() {
   const val = id => parseFloat(document.getElementById(id).value) || 0;
 
@@ -127,6 +152,11 @@ async function init() {
   document.getElementById('fMinijob').value           = profile.minijob           || '';
   document.getElementById('fKindergeld').value        = profile.kindergeld        || '';
   document.getElementById('fAndereEinkuenfte').value  = profile.andere_einkuenfte || '';
+  // Ja/Nein-Status wiederherstellen
+  setupEinkunftToggles();
+  EINKUNFT_FELDER.forEach(feld => {
+    if (profile[feld.profileKey]) setEinkunftAktiv(feld, profile[feld.profileKey]);
+  });
 
   document.getElementById('fAusgabenMiete').value             = profile.ausgaben_miete             || '';
   document.getElementById('fAusgabenNebenkosten').value       = profile.ausgaben_nebenkosten       || '';
@@ -196,9 +226,13 @@ async function init() {
       beruf:                      document.getElementById('fBeruf').value,
       berufsgruppe:               document.getElementById('fBerufsgruppe').value,
       wohneigentum:               document.getElementById('fWohneigentum').value,
+      rente_aktiv:                document.getElementById('fRenteAktiv').value,
       rente:                      document.getElementById('fRente').value,
+      minijob_aktiv:              document.getElementById('fMinijobAktiv').value,
       minijob:                    document.getElementById('fMinijob').value,
+      kindergeld_aktiv:           document.getElementById('fKindergeldAktiv').value,
       kindergeld:                 document.getElementById('fKindergeld').value,
+      andere_einkuenfte_aktiv:    document.getElementById('fAndereEinkuenfteAktiv').value,
       andere_einkuenfte:          document.getElementById('fAndereEinkuenfte').value,
       ausgaben_miete:             document.getElementById('fAusgabenMiete').value,
       ausgaben_nebenkosten:       document.getElementById('fAusgabenNebenkosten').value,

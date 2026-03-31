@@ -17,7 +17,7 @@ let allContracts = [];
 
 const EMPTY_TEXTS = {
   all:          'Noch keine Verträge vorhanden.',
-  own:          'Du hast noch keine eigenen Verträge beim Versicherer hinterlegt.',
+  own:          'Du hast noch keine eigenen Verträge bei Continentale hinterlegt.',
   external:     'Du hast noch keine weiteren Versicherungen hinzugefügt.',
   subscription: 'Du hast noch keine Abos oder laufenden Kosten hinzugefügt.',
   other:        'Keine sonstigen Einträge vorhanden.'
