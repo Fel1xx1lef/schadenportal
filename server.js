@@ -319,10 +319,8 @@ app.get('/api/profile', requireLogin, async (req, res) => {
       ausgaben_lebensmittel:      user.ausgaben_lebensmittel || '',
       ausgaben_mobilitaet:        user.ausgaben_mobilitaet || '',
       ausgaben_telekommunikation: user.ausgaben_telekommunikation || '',
-      ausgaben_versicherungen:    user.ausgaben_versicherungen || '',
       ausgaben_freizeit:          user.ausgaben_freizeit || '',
-      ausgaben_kleidung:          user.ausgaben_kleidung || '',
-      ausgaben_sonstiges:         user.ausgaben_sonstiges || ''
+      ausgaben_kleidung:          user.ausgaben_kleidung || ''
     });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -335,16 +333,16 @@ app.put('/api/profile', requireLogin, async (req, res) => {
       'gross_income', 'net_income',
       'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
       'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_lebensmittel',
-      'ausgaben_mobilitaet', 'ausgaben_telekommunikation', 'ausgaben_versicherungen',
-      'ausgaben_freizeit', 'ausgaben_kleidung', 'ausgaben_sonstiges'
+      'ausgaben_mobilitaet', 'ausgaben_telekommunikation',
+      'ausgaben_freizeit', 'ausgaben_kleidung'
     ]);
     const allowed = ['full_name', 'phone', 'mobile', 'birth_date', 'marital_status',
       'spouse_name', 'health_insurance_type', 'health_insurance_provider',
       'gross_income', 'net_income', 'beruf', 'berufsgruppe', 'wohneigentum',
       'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
       'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_lebensmittel',
-      'ausgaben_mobilitaet', 'ausgaben_telekommunikation', 'ausgaben_versicherungen',
-      'ausgaben_freizeit', 'ausgaben_kleidung', 'ausgaben_sonstiges'];
+      'ausgaben_mobilitaet', 'ausgaben_telekommunikation',
+      'ausgaben_freizeit', 'ausgaben_kleidung'];
     const update = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {

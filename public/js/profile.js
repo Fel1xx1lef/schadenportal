@@ -31,12 +31,23 @@ function toggleSpouseField() {
     status === 'verheiratet' ? 'block' : 'none';
 }
 
+function toMonthly(amount, cycle) {
+  if (cycle === 'monthly')    return amount;
+  if (cycle === 'quarterly')  return amount / 3;
+  if (cycle === 'halfyearly') return amount / 6;
+  if (cycle === 'yearly')     return amount / 12;
+  return amount;
+}
+
 function formatEuro(value) {
   return '€ ' + value.toLocaleString('de-DE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
 }
+
+// Monatliche Vertragskosten (werden beim Init befüllt)
+let contractInsurance = 0, contractAbos = 0, contractSonstiges = 0;
 
 function updateFinanzuebersicht() {
   const val = id => parseFloat(document.getElementById(id).value) || 0;
@@ -54,10 +65,9 @@ function updateFinanzuebersicht() {
     val('fAusgabenLebensmittel') +
     val('fAusgabenMobilitaet') +
     val('fAusgabenTelekommunikation') +
-    val('fAusgabenVersicherungen') +
     val('fAusgabenFreizeit') +
     val('fAusgabenKleidung') +
-    val('fAusgabenSonstiges');
+    contractInsurance + contractAbos + contractSonstiges;
 
   const bilanz = einnahmen - ausgaben;
   const isPositive = bilanz >= 0;
@@ -123,10 +133,20 @@ async function init() {
   document.getElementById('fAusgabenLebensmittel').value      = profile.ausgaben_lebensmittel      || '';
   document.getElementById('fAusgabenMobilitaet').value        = profile.ausgaben_mobilitaet        || '';
   document.getElementById('fAusgabenTelekommunikation').value = profile.ausgaben_telekommunikation || '';
-  document.getElementById('fAusgabenVersicherungen').value    = profile.ausgaben_versicherungen    || '';
   document.getElementById('fAusgabenFreizeit').value          = profile.ausgaben_freizeit          || '';
   document.getElementById('fAusgabenKleidung').value          = profile.ausgaben_kleidung          || '';
-  document.getElementById('fAusgabenSonstiges').value         = profile.ausgaben_sonstiges         || '';
+
+  // Vertragskosten laden und automatisch anzeigen
+  const contracts = await fetch('/api/contracts').then(r => r.json()).catch(() => []);
+  contracts.forEach(c => {
+    const m = toMonthly(parseFloat(c.premium_amount) || 0, c.premium_cycle);
+    if (c.category === 'insurance')     contractInsurance += m;
+    else if (c.category === 'subscription') contractAbos += m;
+    else contractSonstiges += m;
+  });
+  document.getElementById('autoVersicherungen').textContent = formatEuro(contractInsurance);
+  document.getElementById('autoAbos').textContent           = formatEuro(contractAbos);
+  document.getElementById('autoSonstiges').textContent      = formatEuro(contractSonstiges);
 
   if (profile.health_insurance_type) setKvType(profile.health_insurance_type);
   toggleSpouseField();
@@ -145,8 +165,8 @@ async function init() {
   const FINANZ_IDS = [
     'fNetIncome', 'fRente', 'fMinijob', 'fKindergeld', 'fAndereEinkuenfte',
     'fAusgabenMiete', 'fAusgabenNebenkosten', 'fAusgabenLebensmittel',
-    'fAusgabenMobilitaet', 'fAusgabenTelekommunikation', 'fAusgabenVersicherungen',
-    'fAusgabenFreizeit', 'fAusgabenKleidung', 'fAusgabenSonstiges'
+    'fAusgabenMobilitaet', 'fAusgabenTelekommunikation',
+    'fAusgabenFreizeit', 'fAusgabenKleidung'
   ];
   FINANZ_IDS.forEach(id =>
     document.getElementById(id).addEventListener('input', updateFinanzuebersicht));
@@ -185,10 +205,8 @@ async function init() {
       ausgaben_lebensmittel:      document.getElementById('fAusgabenLebensmittel').value,
       ausgaben_mobilitaet:        document.getElementById('fAusgabenMobilitaet').value,
       ausgaben_telekommunikation: document.getElementById('fAusgabenTelekommunikation').value,
-      ausgaben_versicherungen:    document.getElementById('fAusgabenVersicherungen').value,
       ausgaben_freizeit:          document.getElementById('fAusgabenFreizeit').value,
-      ausgaben_kleidung:          document.getElementById('fAusgabenKleidung').value,
-      ausgaben_sonstiges:         document.getElementById('fAusgabenSonstiges').value
+      ausgaben_kleidung:          document.getElementById('fAusgabenKleidung').value
     };
 
     const res = await fetch('/api/profile', {
