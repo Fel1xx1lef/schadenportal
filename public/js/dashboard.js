@@ -39,20 +39,28 @@ async function init() {
   ]);
 
   // Kostenberechnung
-  let totalMonthly = 0, insMonthly = 0, subMonthly = 0, othMonthly = 0;
+  let insMonthly = 0, subMonthly = 0, othMonthly = 0;
   contracts.forEach(c => {
     const m = toMonthly(c.premium_amount, c.premium_cycle);
-    totalMonthly += m;
     if (c.category === 'insurance')    insMonthly += m;
     else if (c.category === 'subscription') subMonthly += m;
     else othMonthly += m;
   });
+
+  // Haushalt-Kosten aus Profil
+  const vp = key => parseFloat(profile[key]) || 0;
+  const haushaltsMonthly =
+    vp('ausgaben_miete') + vp('ausgaben_nebenkosten') + vp('ausgaben_lebensmittel') +
+    vp('ausgaben_mobilitaet') + vp('ausgaben_freizeit') + vp('ausgaben_kleidung');
+
+  const totalMonthly = insMonthly + subMonthly + othMonthly + haushaltsMonthly;
 
   document.getElementById('totalMonthly').textContent = fmt(totalMonthly).replace(' €', '');
   document.getElementById('totalYearly').textContent = fmt(totalMonthly * 12);
   document.getElementById('insuranceMonthly').textContent = fmt(insMonthly);
   document.getElementById('subscriptionMonthly').textContent = fmt(subMonthly);
   document.getElementById('otherMonthly').textContent = fmt(othMonthly);
+  document.getElementById('haushaltsMonthly').textContent = fmt(haushaltsMonthly);
 
   // Statistiken
   const ownCount      = contracts.filter(c => c.category === 'insurance' && (c.is_own_insurer === true || c.added_by_role === 'admin')).length;
@@ -78,7 +86,7 @@ async function init() {
   loadRecommendations(me.consent_offers);
 
   // Kostenverteilung
-  renderCostChart(insMonthly, subMonthly, othMonthly);
+  renderCostChart(insMonthly, subMonthly, othMonthly, haushaltsMonthly);
 }
 
 function renderFinanzuebersicht(profile, insMonthly, subMonthly, othMonthly) {
@@ -89,8 +97,7 @@ function renderFinanzuebersicht(profile, insMonthly, subMonthly, othMonthly) {
 
   const ausgaben =
     v('ausgaben_miete') + v('ausgaben_nebenkosten') + v('ausgaben_lebensmittel') +
-    v('ausgaben_mobilitaet') + v('ausgaben_telekommunikation') +
-    v('ausgaben_freizeit') + v('ausgaben_kleidung') +
+    v('ausgaben_mobilitaet') + v('ausgaben_freizeit') + v('ausgaben_kleidung') +
     insMonthly + subMonthly + othMonthly;
 
   const bilanz = einnahmen - ausgaben;
@@ -121,15 +128,16 @@ function renderFinanzuebersicht(profile, insMonthly, subMonthly, othMonthly) {
   }
 }
 
-function renderCostChart(ins, sub, oth) {
+function renderCostChart(ins, sub, oth, hhalt) {
   const container = document.getElementById('costChart');
-  const total = ins + sub + oth;
+  const total = ins + sub + oth + hhalt;
   if (total === 0) return;
 
   const segments = [
-    { label: 'Versicherungen', value: ins, color: 'var(--primary)' },
-    { label: 'Abonnements',    value: sub, color: '#9d174d' },
-    { label: 'Sonstiges',      value: oth, color: '#64748b' },
+    { label: 'Versicherungen', value: ins,   color: 'var(--primary)' },
+    { label: 'Abonnements',    value: sub,   color: '#9d174d' },
+    { label: 'Haushalt',       value: hhalt, color: '#b45309' },
+    { label: 'Sonstiges',      value: oth,   color: '#64748b' },
   ].filter(s => s.value > 0);
 
   container.innerHTML = '';

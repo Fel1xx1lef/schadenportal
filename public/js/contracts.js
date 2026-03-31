@@ -17,6 +17,7 @@ let allContracts = [];
 
 const EMPTY_TEXTS = {
   all:          'Noch keine Verträge vorhanden.',
+  allinsurance: 'Noch keine Versicherungen vorhanden.',
   own:          'Du hast noch keine eigenen Verträge bei Continentale hinterlegt.',
   external:     'Du hast noch keine weiteren Versicherungen hinzugefügt.',
   subscription: 'Du hast noch keine Abos oder laufenden Kosten hinzugefügt.',
@@ -30,6 +31,7 @@ function isOwn(c) {
 function renderGrids() {
   const grids = {
     all:          document.getElementById('grid-all'),
+    allinsurance: document.getElementById('grid-allinsurance'),
     own:          document.getElementById('grid-own'),
     external:     document.getElementById('grid-external'),
     subscription: document.getElementById('grid-subscription'),
@@ -40,6 +42,7 @@ function renderGrids() {
 
   const filtered = {
     all:          allContracts,
+    allinsurance: allContracts.filter(c => c.category === 'insurance'),
     own:          allContracts.filter(c => isOwn(c)),
     external:     allContracts.filter(c => c.category === 'insurance' && !isOwn(c)),
     subscription: allContracts.filter(c => c.category === 'subscription'),
@@ -77,12 +80,7 @@ function buildCard(c) {
   const meta = document.createElement('div');
   meta.className = 'contract-meta';
   meta.appendChild(catBadge(c.category));
-  if (isOwn(c)) {
-    const agBadge = document.createElement('span');
-    agBadge.className = 'badge badge-own-insurer';
-    agBadge.textContent = 'Beim Versicherer';
-    meta.appendChild(agBadge);
-  } else if (c.category === 'insurance' || c.category === 'subscription') {
+  if (!isOwn(c) && (c.category === 'insurance' || c.category === 'subscription')) {
     const selfBadge = document.createElement('span');
     selfBadge.className = 'badge badge-self-added';
     selfBadge.textContent = 'Selbst hinzugefügt';
@@ -249,12 +247,7 @@ function openInfoModal(c) {
   const badges = document.createElement('div');
   badges.style.cssText = 'padding:8px 0 12px;display:flex;gap:6px;flex-wrap:wrap;';
   const cb = catBadge(c.category); badges.appendChild(cb);
-  if (isOwn(c)) {
-    const ab = document.createElement('span');
-    ab.className = 'badge badge-own-insurer';
-    ab.textContent = 'Beim Versicherer';
-    badges.appendChild(ab);
-  } else if (c.category === 'insurance' || c.category === 'subscription') {
+  if (!isOwn(c) && (c.category === 'insurance' || c.category === 'subscription')) {
     const sb = document.createElement('span');
     sb.className = 'badge badge-self-added';
     sb.textContent = 'Selbst hinzugefügt';
@@ -620,13 +613,25 @@ async function init() {
   // Direkt Modal öffnen wenn #new im Hash
   if (window.location.hash === '#new') openAdd();
 
-  // Vorausgefülltes Formular per URL-Parameter (Schnell-Hinzufügen vom Dashboard)
+  // Tab per URL-Parameter aktivieren (z.B. vom Dashboard)
   const params = new URLSearchParams(window.location.search);
-  if (params.get('prefill') === '1') {
+  const tabParam = params.get('tab');
+  if (tabParam && document.getElementById('tab-' + tabParam)) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabParam}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.getElementById('tab-' + tabParam).classList.add('active');
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  // Vorausgefülltes Formular per URL-Parameter (Schnell-Hinzufügen vom Dashboard)
+  const params2 = new URLSearchParams(window.location.search);
+  if (params2.get('prefill') === '1') {
     history.replaceState(null, '', window.location.pathname);
     openAdd();
-    const cat  = params.get('category');
-    const name = params.get('name');
+    const cat  = params2.get('category');
+    const name = params2.get('name');
     if (cat) {
       fCategory.value = cat;
       fCategory.dispatchEvent(new Event('change'));

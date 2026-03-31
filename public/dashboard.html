@@ -70,17 +70,21 @@
             <h2>Monatliche Gesamtkosten</h2>
             <div class="cost-total"><span id="totalMonthly">–</span> <small>€ / Monat</small></div>
             <div class="cost-breakdown">
-              <div class="cost-item">
-                <label>Versicherungen</label>
+              <div class="cost-item cost-item-link" onclick="window.location.href='contracts.html?tab=allinsurance'" title="Zu Versicherungen">
+                <label>Versicherungen ›</label>
                 <value id="insuranceMonthly">–</value>
               </div>
-              <div class="cost-item">
-                <label>Abonnements</label>
+              <div class="cost-item cost-item-link" onclick="window.location.href='contracts.html?tab=subscription'" title="Zu Abonnements">
+                <label>Abonnements ›</label>
                 <value id="subscriptionMonthly">–</value>
               </div>
-              <div class="cost-item">
-                <label>Sonstiges</label>
+              <div class="cost-item cost-item-link" onclick="window.location.href='contracts.html?tab=other'" title="Zu Sonstiges">
+                <label>Sonstiges ›</label>
                 <value id="otherMonthly">–</value>
+              </div>
+              <div class="cost-item cost-item-link" onclick="window.location.href='profile.html'" title="Zum Profil">
+                <label>Haushalt ›</label>
+                <value id="haushaltsMonthly">–</value>
               </div>
               <div class="cost-item">
                 <label>Jährlich gesamt</label>

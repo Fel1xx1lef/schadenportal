@@ -22,7 +22,20 @@ function setKvType(type) {
   document.querySelectorAll('#kvToggle .toggle-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.kv === type);
   });
-  document.getElementById('kvProviderGroup').style.display = type === 'gkv' ? 'block' : 'none';
+  const providerGroup = document.getElementById('kvProviderGroup');
+  const providerLabel = document.getElementById('kvProviderLabel');
+  const providerInput = document.getElementById('fKvProvider');
+  if (type === 'gkv') {
+    providerGroup.style.display = 'block';
+    providerLabel.textContent = 'Krankenkasse';
+    providerInput.placeholder = 'z.B. AOK, Techniker Krankenkasse…';
+  } else if (type === 'pkv') {
+    providerGroup.style.display = 'block';
+    providerLabel.textContent = 'Versicherungsgesellschaft';
+    providerInput.placeholder = 'z.B. Continentale, Allianz, DKV…';
+  } else {
+    providerGroup.style.display = 'none';
+  }
 }
 
 function toggleSpouseField() {
@@ -89,7 +102,6 @@ function updateFinanzuebersicht() {
     val('fAusgabenNebenkosten') +
     val('fAusgabenLebensmittel') +
     val('fAusgabenMobilitaet') +
-    val('fAusgabenTelekommunikation') +
     val('fAusgabenFreizeit') +
     val('fAusgabenKleidung') +
     contractInsurance + contractAbos + contractSonstiges;
@@ -162,7 +174,6 @@ async function init() {
   document.getElementById('fAusgabenNebenkosten').value       = profile.ausgaben_nebenkosten       || '';
   document.getElementById('fAusgabenLebensmittel').value      = profile.ausgaben_lebensmittel      || '';
   document.getElementById('fAusgabenMobilitaet').value        = profile.ausgaben_mobilitaet        || '';
-  document.getElementById('fAusgabenTelekommunikation').value = profile.ausgaben_telekommunikation || '';
   document.getElementById('fAusgabenFreizeit').value          = profile.ausgaben_freizeit          || '';
   document.getElementById('fAusgabenKleidung').value          = profile.ausgaben_kleidung          || '';
 
@@ -224,8 +235,7 @@ async function init() {
   const FINANZ_IDS = [
     'fNetIncome', 'fRente', 'fMinijob', 'fKindergeld', 'fAndereEinkuenfte',
     'fAusgabenMiete', 'fAusgabenNebenkosten', 'fAusgabenLebensmittel',
-    'fAusgabenMobilitaet', 'fAusgabenTelekommunikation',
-    'fAusgabenFreizeit', 'fAusgabenKleidung'
+    'fAusgabenMobilitaet', 'fAusgabenFreizeit', 'fAusgabenKleidung'
   ];
   FINANZ_IDS.forEach(id =>
     document.getElementById(id).addEventListener('input', updateFinanzuebersicht));
@@ -267,7 +277,6 @@ async function init() {
       ausgaben_nebenkosten:       document.getElementById('fAusgabenNebenkosten').value,
       ausgaben_lebensmittel:      document.getElementById('fAusgabenLebensmittel').value,
       ausgaben_mobilitaet:        document.getElementById('fAusgabenMobilitaet').value,
-      ausgaben_telekommunikation: document.getElementById('fAusgabenTelekommunikation').value,
       ausgaben_freizeit:          document.getElementById('fAusgabenFreizeit').value,
       ausgaben_kleidung:          document.getElementById('fAusgabenKleidung').value
     };

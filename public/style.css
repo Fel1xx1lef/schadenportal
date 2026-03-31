@@ -550,6 +550,14 @@ select.form-control { cursor: pointer; }
   font-weight: 700;
   display: block;
 }
+.cost-item-link {
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.cost-item-link:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
 
 /* ── Dashboard Grid ──────────────────────────────────────────────────────── */
 .dashboard-grid {
@@ -1007,6 +1015,8 @@ tbody tr:last-child td { border-bottom: none; }
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
+.profile-cards-grid > * { min-width: 0; }
+input[type="date"].form-control { min-width: 0; max-width: 100%; }
 /* Ausgaben: 2-spaltiges Feld-Raster */
 .ausgaben-grid {
   display: grid;
