@@ -240,6 +240,42 @@ async function init() {
   FINANZ_IDS.forEach(id =>
     document.getElementById(id).addEventListener('input', updateFinanzuebersicht));
 
+  // Konto löschen
+  document.getElementById('deleteAccountBtn').addEventListener('click', () => {
+    document.getElementById('deleteAccountForm').style.display = '';
+    document.getElementById('deleteAccountBtn').style.display = 'none';
+  });
+
+  document.getElementById('deleteAccountCancelBtn').addEventListener('click', () => {
+    document.getElementById('deleteAccountForm').style.display = 'none';
+    document.getElementById('deleteAccountBtn').style.display = '';
+    document.getElementById('deleteAccountPassword').value = '';
+    document.getElementById('deleteAccountAlert').classList.add('hidden');
+  });
+
+  document.getElementById('deleteAccountConfirmBtn').addEventListener('click', async () => {
+    const alertEl = document.getElementById('deleteAccountAlert');
+    alertEl.classList.add('hidden');
+    const password = document.getElementById('deleteAccountPassword').value;
+    if (!password) {
+      alertEl.textContent = 'Bitte Passwort eingeben.';
+      alertEl.classList.remove('hidden');
+      return;
+    }
+    const res = await fetch('/api/auth/account', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (res.ok) {
+      window.location.href = 'login.html';
+    } else {
+      const d = await res.json();
+      alertEl.textContent = d.error || 'Fehler beim Löschen des Kontos.';
+      alertEl.classList.remove('hidden');
+    }
+  });
+
   // Formular speichern
   document.getElementById('profileForm').addEventListener('submit', async e => {
     e.preventDefault();

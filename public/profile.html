@@ -319,6 +319,24 @@
         </div>
       </form>
 
+      <!-- Konto löschen -->
+      <div class="card animate-in" style="margin-top:24px;border-color:#fca5a5;">
+        <div class="card-title" style="color:var(--danger)"><span class="icon">🗑️</span>Konto löschen</div>
+        <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">
+          Hiermit wird dein Konto dauerhaft gelöscht. Alle gespeicherten Daten (Verträge, Profil, Nachrichten) werden vollständig und unwiderruflich entfernt.
+        </p>
+        <div id="deleteAccountAlert" class="alert alert-error hidden" style="margin-bottom:12px;"></div>
+        <div id="deleteAccountForm" style="display:none;margin-bottom:12px;">
+          <div class="form-group" style="max-width:320px;">
+            <label>Passwort zur Bestätigung</label>
+            <input type="password" id="deleteAccountPassword" class="form-control" placeholder="Dein aktuelles Passwort">
+          </div>
+          <button class="btn btn-danger" id="deleteAccountConfirmBtn">Konto endgültig löschen</button>
+          <button type="button" class="btn btn-secondary" id="deleteAccountCancelBtn" style="margin-left:8px;">Abbrechen</button>
+        </div>
+        <button class="btn btn-secondary" id="deleteAccountBtn" style="border-color:#fca5a5;color:var(--danger);">Konto löschen…</button>
+      </div>
+
       <!-- 2FA Karte -->
       <div class="card animate-in" style="margin-top:24px;" id="twoFactorCard">
         <div class="card-title"><span class="icon">🔐</span>Zwei-Faktor-Authentifizierung</div>

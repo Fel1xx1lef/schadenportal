@@ -9,16 +9,12 @@ fs.mkdirSync(path.join(dataDir, 'sessions'), { recursive: true });
 const users = new Datastore({ filename: path.join(dataDir, 'users.db'), autoload: true });
 const contracts = new Datastore({ filename: path.join(dataDir, 'contracts.db'), autoload: true });
 const messages = new Datastore({ filename: path.join(dataDir, 'messages.db'), autoload: true });
-const crm = new Datastore({ filename: path.join(dataDir, 'crm.db'), autoload: true });
 const activityLog = new Datastore({ filename: path.join(dataDir, 'activity_log.db'), autoload: true });
 const settings      = new Datastore({ filename: path.join(dataDir, 'settings.db'),      autoload: true });
-const tasks         = new Datastore({ filename: path.join(dataDir, 'tasks.db'),         autoload: true });
-const consultations = new Datastore({ filename: path.join(dataDir, 'consultations.db'), autoload: true });
 const appointments  = new Datastore({ filename: path.join(dataDir, 'appointments.db'),  autoload: true });
 
 // Indizes
 users.ensureIndex({ fieldName: 'email', unique: true });
-crm.ensureIndex({ fieldName: 'user_id', unique: true });
 
 // Admin-Account beim ersten Start anlegen
 async function seedAdmin() {
@@ -57,4 +53,4 @@ async function seedSettings() {
   }
 }
 
-module.exports = { users, contracts, messages, crm, activityLog, settings, tasks, consultations, appointments, seedAdmin, seedSettings };
+module.exports = { users, contracts, messages, activityLog, settings, appointments, seedAdmin, seedSettings };

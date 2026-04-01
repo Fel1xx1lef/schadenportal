@@ -83,7 +83,7 @@ async function init() {
   renderHints(contracts, profile);
 
   // Empfehlungen laden
-  loadRecommendations(me.consent_offers);
+  loadRecommendations(me.consent_analysis);
 
   // Kostenverteilung
   renderCostChart(insMonthly, subMonthly, othMonthly, haushaltsMonthly);
@@ -298,12 +298,12 @@ const INQUIRY_FIELDS = {
 let _currentProfile = {};
 
 // ── Empfehlungen ──────────────────────────────────────────────────────────────
-async function loadRecommendations(consentOffers) {
+async function loadRecommendations(consentAnalysis) {
   const container = document.getElementById('recommendationsList');
-  if (!consentOffers) {
+  if (!consentAnalysis) {
     container.innerHTML = `
       <div style="padding:12px 0;font-size:14px;color:var(--text-secondary);line-height:1.7;">
-        Du hast der Nutzung deiner Daten für Empfehlungen nicht zugestimmt.<br>
+        Aktiviere die Analyse-Einwilligung in den Datenschutz-Einstellungen, um Hinweise zu sehen.<br>
         <a href="consent.html" style="color:var(--primary);font-weight:500;">Einwilligung erteilen →</a>
       </div>`;
     return;

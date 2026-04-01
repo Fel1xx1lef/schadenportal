@@ -1,8 +1,7 @@
 let currentUser = null;
 
-function updateBadges(me) {
-  document.getElementById('badge_advisory').textContent = me.consent_advisory ? '✅' : '⬜';
-  document.getElementById('badge_offers').textContent   = me.consent_offers   ? '✅' : '⬜';
+function updateBadge(consentAnalysis) {
+  document.getElementById('badge_analysis').textContent = consentAnalysis ? '✅' : '⬜';
 }
 
 // ── Erst-Einwilligung ─────────────────────────────────────────────────────────
@@ -10,19 +9,11 @@ document.getElementById('firstConsentBtn').addEventListener('click', async () =>
   const alertEl = document.getElementById('firstConsentAlert');
   alertEl.classList.add('hidden');
 
-  if (!document.getElementById('fc_display').checked) {
-    alertEl.textContent = 'Die Einwilligung zur Datenspeicherung ist erforderlich, um das Portal zu nutzen.';
-    alertEl.classList.remove('hidden');
-    return;
-  }
-
   const res = await fetch('/api/auth/consent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      consent_display_and_analysis: true,
-      consent_advisory: document.getElementById('fc_advisory').checked,
-      consent_offers:   document.getElementById('fc_offers').checked
+      consent_analysis: document.getElementById('fc_analysis').checked
     })
   });
 
@@ -35,41 +26,31 @@ document.getElementById('firstConsentBtn').addEventListener('click', async () =>
   }
 });
 
-// ── Optionale Einwilligungen bearbeiten ───────────────────────────────────────
-const editModal = document.getElementById('editConsentModal');
-
-document.getElementById('editConsentBtn').addEventListener('click', () => {
-  document.getElementById('ec_advisory').checked = !!currentUser.consent_advisory;
-  document.getElementById('ec_offers').checked   = !!currentUser.consent_offers;
-  document.getElementById('editConsentModalAlert').classList.add('hidden');
-  editModal.classList.remove('hidden');
-});
-
-document.getElementById('editConsentModalClose').addEventListener('click',  () => editModal.classList.add('hidden'));
-document.getElementById('editConsentModalCancel').addEventListener('click', () => editModal.classList.add('hidden'));
-editModal.addEventListener('click', e => { if (e.target === editModal) editModal.classList.add('hidden'); });
-
-document.getElementById('editConsentModalSave').addEventListener('click', async () => {
-  const alertEl = document.getElementById('editConsentModalAlert');
+// ── Analyse-Einwilligung ändern ───────────────────────────────────────────────
+document.getElementById('toggleAnalysisBtn').addEventListener('click', async () => {
+  const alertEl = document.getElementById('manageConsentAlert');
   alertEl.classList.add('hidden');
+
+  const newValue = !currentUser.consent_analysis;
 
   const res = await fetch('/api/auth/consent', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      consent_advisory: document.getElementById('ec_advisory').checked,
-      consent_offers:   document.getElementById('ec_offers').checked
-    })
+    body: JSON.stringify({ consent_analysis: newValue })
   });
 
   if (res.ok) {
-    currentUser.consent_advisory = document.getElementById('ec_advisory').checked;
-    currentUser.consent_offers   = document.getElementById('ec_offers').checked;
-    updateBadges(currentUser);
-    editModal.classList.add('hidden');
+    currentUser.consent_analysis = newValue;
+    updateBadge(newValue);
+    alertEl.textContent = newValue
+      ? 'Analyse-Einwilligung erteilt.'
+      : 'Analyse-Einwilligung widerrufen.';
+    alertEl.className = 'alert alert-success';
+    alertEl.classList.remove('hidden');
   } else {
     const d = await res.json();
     alertEl.textContent = d.error || 'Fehler beim Speichern';
+    alertEl.className = 'alert alert-error';
     alertEl.classList.remove('hidden');
   }
 });
@@ -80,17 +61,16 @@ async function init() {
   if (!me || !me.id) { window.location.href = 'login.html'; return; }
   currentUser = me;
 
+  document.getElementById('logoutBtn').addEventListener('click', async e => {
+    e.preventDefault();
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = 'login.html';
+  });
+
   if (me.consent_given) {
     // Verwaltungs-Modus
-    document.getElementById('sidebar').style.display = '';
     document.getElementById('manageConsentView').style.display = '';
-    updateBadges(me);
-
-    document.getElementById('logoutBtn').addEventListener('click', async e => {
-      e.preventDefault();
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = 'login.html';
-    });
+    updateBadge(me.consent_analysis);
   } else {
     // Erst-Einwilligungs-Modus: Sidebar ausblenden
     document.getElementById('sidebar').style.display = 'none';
