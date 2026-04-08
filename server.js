@@ -65,9 +65,11 @@ const twoFALimiter = rateLimit({
   message: { error: 'Zu viele Versuche. Bitte 15 Minuten warten.' }
 });
 
+const PASSWORD_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
+
 function buildPasswordFlags(user) {
   const mustChange = !!user.must_change_password;
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const ninetyDaysAgo = new Date(Date.now() - PASSWORD_EXPIRY_MS);
   const pwChangedAt = user.password_changed_at ? new Date(user.password_changed_at) : null;
   const expiryWarning = !mustChange && (!pwChangedAt || pwChangedAt < ninetyDaysAgo);
   return {
@@ -126,6 +128,9 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
   try {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
+    const ninetyDaysAgo = new Date(Date.now() - PASSWORD_EXPIRY_MS);
+    const pwChangedAt = user.password_changed_at ? new Date(user.password_changed_at) : null;
+    const password_expiry_warning = !user.must_change_password && (!pwChangedAt || pwChangedAt < ninetyDaysAgo);
     res.json({
       id: user._id,
       email: user.email,
@@ -134,7 +139,8 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
       phone: user.phone || '',
       consent_given: !!(user.terms_accepted_at || user.consent_given),
       consent_analysis: !!user.consent_analysis,
-      totp_enabled: !!user.totp_enabled
+      totp_enabled: !!user.totp_enabled,
+      password_expiry_warning
     });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -712,6 +718,7 @@ app.post('/api/admin/admins', requireAdmin, async (req, res) => {
       password_hash: hash,
       full_name: full_name.trim(),
       role: 'admin',
+      must_change_password: true,
       created_at: new Date().toISOString()
     });
     res.status(201).json({ id: admin._id, email: admin.email, full_name: admin.full_name });
@@ -764,6 +771,7 @@ app.post('/api/admin/customers', requireAdmin, async (req, res) => {
       password_hash: hash,
       full_name: full_name.trim(),
       role: 'customer',
+      must_change_password: true,
       created_at: new Date().toISOString()
     });
     await logActivity(user._id, 'customer_created', null);
@@ -875,8 +883,22 @@ app.delete('/api/admin/appointments/:id', requireAdmin, async (req, res) => {
   }
 });
 
+async function migratePasswordFields() {
+  // Set must_change_password for existing users who have never changed their password
+  // (i.e., no password_changed_at field exists)
+  // This only sets the flag on accounts that were created before this feature existed
+  const result = await users.updateAsync(
+    { password_changed_at: { $exists: false }, must_change_password: { $exists: false } },
+    { $set: { must_change_password: true } },
+    { multi: true }
+  );
+  if (result > 0) {
+    console.log(`✓ Migration: ${result} Benutzer müssen ihr Passwort beim nächsten Login ändern`);
+  }
+}
+
 // ── Start ─────────────────────────────────────────────────────────────────────
-Promise.all([seedAdmin(), seedSettings()]).then(() => {
+Promise.all([seedAdmin(), seedSettings(), migratePasswordFields()]).then(() => {
   const server = app.listen(PORT, () => {
     console.log(`\nKundenportal läuft auf http://localhost:${PORT}`);
     console.log('Zum Beenden: Strg+C\n');
