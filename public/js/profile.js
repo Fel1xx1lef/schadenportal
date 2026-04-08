@@ -337,3 +337,49 @@ async function init() {
 }
 
 init();
+
+// ── Passwort ändern ───────────────────────────────────────────────────────────
+document.getElementById('pwChangeForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const alertEl = document.getElementById('pwChangeAlert');
+  const btn = document.getElementById('pwChangeBtn');
+  alertEl.classList.add('hidden');
+  alertEl.className = 'alert hidden';
+
+  const current_password = document.getElementById('pwCurrent').value;
+  const new_password = document.getElementById('pwNew').value;
+  const confirm = document.getElementById('pwConfirm').value;
+
+  if (new_password !== confirm) {
+    alertEl.textContent = 'Die neuen Passwörter stimmen nicht überein.';
+    alertEl.className = 'alert alert-error';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Speichern…';
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password, new_password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alertEl.textContent = data.error || 'Fehler beim Speichern.';
+      alertEl.className = 'alert alert-error';
+    } else {
+      alertEl.textContent = 'Passwort erfolgreich geändert.';
+      alertEl.className = 'alert alert-success';
+      document.getElementById('pwChangeForm').reset();
+      sessionStorage.removeItem('pw_expiry_warning');
+    }
+  } catch {
+    alertEl.textContent = 'Verbindungsfehler.';
+    alertEl.className = 'alert alert-error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Passwort ändern';
+  }
+});
