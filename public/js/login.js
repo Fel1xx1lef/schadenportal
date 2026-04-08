@@ -22,10 +22,18 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
       alert.textContent = data.error || 'Anmeldung fehlgeschlagen';
       alert.classList.remove('hidden');
     } else {
+      if (data.password_expiry_warning) {
+        sessionStorage.setItem('pw_expiry_warning', '1');
+      } else {
+        sessionStorage.removeItem('pw_expiry_warning');
+      }
+
       if (data.requires_2fa) {
         window.location.href = '2fa-verify.html';
       } else if (data.requires_2fa_setup) {
         window.location.href = '2fa-setup.html';
+      } else if (data.requires_password_change) {
+        window.location.href = 'change-password.html';
       } else if (data.role === 'admin') {
         window.location.href = 'admin.html';
       } else if (!data.consent_given) {
