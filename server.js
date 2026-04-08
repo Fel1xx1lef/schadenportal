@@ -170,8 +170,14 @@ app.post('/api/auth/change-password', requireLogin, async (req, res) => {
     const valid = await bcrypt.compare(current_password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Aktuelles Passwort falsch' });
 
+    const sameAsOld = await bcrypt.compare(new_password, user.password_hash);
+    if (sameAsOld) return res.status(400).json({ error: 'Das neue Passwort muss sich vom aktuellen unterscheiden' });
+
     const hash = await bcrypt.hash(new_password, 12);
-    await users.updateAsync({ _id: req.session.userId }, { $set: { password_hash: hash } });
+    await users.updateAsync({ _id: req.session.userId }, {
+      $set: { password_hash: hash, password_changed_at: new Date().toISOString() },
+      $unset: { must_change_password: true }
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
