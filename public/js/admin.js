@@ -646,6 +646,13 @@ async function init() {
   if (!me || !me.id) { window.location.href = 'login.html'; return; }
   if (me.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
 
+  if ((me.password_expiry_warning || sessionStorage.getItem('pw_expiry_warning') === '1')
+      && sessionStorage.getItem('pw_banner_dismissed') !== '1') {
+    const banner = document.getElementById('pwExpiryBanner');
+    banner.classList.remove('hidden');
+    banner.style.display = 'flex';
+  }
+
   document.getElementById('logoutBtn').addEventListener('click', async e => {
     e.preventDefault();
     await fetch('/api/auth/logout', { method: 'POST' });

@@ -24,6 +24,13 @@ async function init() {
   if (!me || !me.id) { window.location.href = 'login.html'; return; }
   if (me.role === 'admin') { window.location.href = 'admin.html'; return; }
 
+  if ((me.password_expiry_warning || sessionStorage.getItem('pw_expiry_warning') === '1')
+      && sessionStorage.getItem('pw_banner_dismissed') !== '1') {
+    const banner = document.getElementById('pwExpiryBanner');
+    banner.classList.remove('hidden');
+    banner.style.display = 'flex';
+  }
+
   document.getElementById('userName').textContent = me.full_name;
 
   document.getElementById('logoutBtn').addEventListener('click', async e => {
