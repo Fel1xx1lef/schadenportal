@@ -40,8 +40,15 @@
         alertEl.textContent = data.error || 'Fehler beim Speichern.';
         alertEl.classList.remove('hidden');
       } else {
-        // Weiterleitung zur richtigen Zielseite
-        window.location.href = me.role === 'admin' ? 'admin.html' : 'dashboard.html';
+        // Nach erfolgreicher Änderung: frische Session-Daten holen für korrektes Routing
+        const fresh = await fetch('/api/auth/me').then(r => r.json()).catch(() => me);
+        if (fresh.role === 'admin') {
+          window.location.href = 'admin.html';
+        } else if (!fresh.consent_given) {
+          window.location.href = 'consent.html';
+        } else {
+          window.location.href = 'dashboard.html';
+        }
       }
     } catch {
       alertEl.textContent = 'Verbindungsfehler. Bitte erneut versuchen.';

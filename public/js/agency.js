@@ -57,7 +57,7 @@
 (async function() {
   const main = document.querySelector('.main');
   if (!main) return;
-  if (window.location.pathname.endsWith('2fa-setup.html')) return;
+  if (window.location.pathname.endsWith('2fa-setup.html') || window.location.pathname.endsWith('change-password.html')) return;
 
   try {
     const me = await fetch('/api/auth/me').then(r => r.json()).catch(() => null);
