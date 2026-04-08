@@ -31,6 +31,7 @@ async function seedAdmin() {
     full_name: 'Felix Schindelhauer',
     phone: '',
     role: 'admin',
+    must_change_password: true,
     created_at: new Date().toISOString()
   });
 
