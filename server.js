@@ -167,6 +167,7 @@ app.post('/api/auth/change-password', requireLogin, async (req, res) => {
     if (new_password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
 
     const user = await users.findOneAsync({ _id: req.session.userId });
+    if (!user) return res.status(401).json({ error: 'Session ungültig' });
     const valid = await bcrypt.compare(current_password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Aktuelles Passwort falsch' });
 
