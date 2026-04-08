@@ -65,6 +65,17 @@ const twoFALimiter = rateLimit({
   message: { error: 'Zu viele Versuche. Bitte 15 Minuten warten.' }
 });
 
+function buildPasswordFlags(user) {
+  const mustChange = !!user.must_change_password;
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const pwChangedAt = user.password_changed_at ? new Date(user.password_changed_at) : null;
+  const expiryWarning = !mustChange && (!pwChangedAt || pwChangedAt < ninetyDaysAgo);
+  return {
+    requires_password_change: mustChange ? true : undefined,
+    password_expiry_warning: expiryWarning ? true : undefined
+  };
+}
+
 // ── Auth Routes ───────────────────────────────────────────────────────────────
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
@@ -94,11 +105,13 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     req.session.userRole = user.role;
     req.session.userEmail = user.email;
 
+    const flags = buildPasswordFlags(user);
+
     if (user.role === 'admin' && !user.totp_enabled) {
-      return res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), requires_2fa_setup: true });
+      return res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), requires_2fa_setup: true, ...flags });
     }
 
-    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given) });
+    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), ...flags });
   } catch (err) {
     console.error('Login-Fehler:', err);
     res.status(500).json({ error: 'Serverfehler' });
@@ -327,7 +340,8 @@ app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
     req.session.userRole = user.role;
     req.session.userEmail = user.email;
 
-    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given) });
+    const flags = buildPasswordFlags(user);
+    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), ...flags });
   } catch (err) {
     console.error('2FA Verify-Fehler:', err);
     res.status(500).json({ error: 'Serverfehler' });
