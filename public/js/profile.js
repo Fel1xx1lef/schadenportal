@@ -343,7 +343,6 @@ document.getElementById('pwChangeForm').addEventListener('submit', async e => {
   e.preventDefault();
   const alertEl = document.getElementById('pwChangeAlert');
   const btn = document.getElementById('pwChangeBtn');
-  alertEl.classList.add('hidden');
   alertEl.className = 'alert hidden';
 
   const current_password = document.getElementById('pwCurrent').value;
