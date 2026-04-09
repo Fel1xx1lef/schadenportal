@@ -1033,6 +1033,7 @@ app.get('/api/admin/appointments', requireAdmin, async (req, res) => {
     const { month } = req.query; // YYYY-MM
     let query = {};
     if (month) {
+      if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: 'Ungültiges Monatsformat (YYYY-MM)' });
       query = { date: { $regex: new RegExp('^' + month) } };
     }
     const list = await appointments.findAsync(query).sort({ date: 1, time: 1 });
@@ -1046,6 +1047,8 @@ app.post('/api/admin/appointments', requireAdmin, async (req, res) => {
   try {
     const { title, date, time, notes } = req.body;
     if (!title || !date) return res.status(400).json({ error: 'Titel und Datum erforderlich' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Ungültiges Datumsformat (YYYY-MM-DD)' });
+    if (time && !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Ungültiges Zeitformat (HH:MM)' });
     const doc = await appointments.insertAsync({
       title:      title.trim(),
       date:       date,
