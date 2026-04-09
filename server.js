@@ -365,19 +365,40 @@ app.get('/api/auth/data-export', requireLogin, async (req, res) => {
     ]);
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
 
+    // Art. 15 DSGVO: alle gespeicherten Felder — keine internen Felder (password_hash, totp_secret)
     const exportData = {
       profile: {
         email: user.email,
         full_name: user.full_name,
         phone: user.phone || '',
+        mobile: user.mobile || '',
+        birth_date: user.birth_date || '',
+        marital_status: user.marital_status || '',
+        spouse_name: user.spouse_name || '',
+        beruf: user.beruf || '',
+        berufsgruppe: user.berufsgruppe || '',
+        wohneigentum: user.wohneigentum || '',
+        gross_income: user.gross_income || '',
+        health_insurance_type: user.consent_health_data ? (user.health_insurance_type || '') : '(Einwilligung nicht erteilt)',
+        health_insurance_provider: user.consent_health_data ? (user.health_insurance_provider || '') : '(Einwilligung nicht erteilt)',
+        rente: user.rente || '',
+        minijob: user.minijob || '',
+        kindergeld: user.kindergeld || '',
+        andere_einkuenfte: user.andere_einkuenfte || '',
+        ausgaben_miete: user.ausgaben_miete || '',
+        ausgaben_nebenkosten: user.ausgaben_nebenkosten || '',
+        ausgaben_mobilitaet: user.ausgaben_mobilitaet || '',
         created_at: user.created_at,
+        last_login_at: user.last_login_at || null,
+        totp_enabled: !!user.totp_enabled,
         consent_analysis: !!user.consent_analysis,
-        consent_given_at: user.consent_given_at || null
+        consent_health_data: !!user.consent_health_data,
+        consent_given_at: user.terms_accepted_at || user.consent_given_at || null
       },
-      contracts: userContracts.map(c => ({ ...c, _id: undefined, user_id: undefined })),
-      messages: userMessages.map(m => ({ ...m, _id: undefined, user_id: undefined })),
-      activity_log: userLog.map(e => ({ ...e, _id: undefined, user_id: undefined })),
-      appointments: userAppointments.map(a => ({ ...a, _id: undefined, user_id: undefined })),
+      contracts: userContracts.map(({ _id, user_id, ...rest }) => rest),
+      messages: userMessages.map(({ _id, user_id, ...rest }) => rest),
+      activity_log: userLog.map(({ _id, user_id, ...rest }) => rest),
+      appointments: userAppointments.map(({ _id, user_id, ...rest }) => rest),
       exported_at: new Date().toISOString()
     };
 
