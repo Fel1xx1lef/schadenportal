@@ -539,6 +539,9 @@ app.get('/api/contracts', requireLogin, async (req, res) => {
   }
 });
 
+const VALID_CATEGORIES = ['insurance', 'subscription', 'other'];
+const VALID_CYCLES = ['monthly', 'quarterly', 'biannual', 'yearly', 'once'];
+
 app.post('/api/contracts', requireLogin, async (req, res) => {
   try {
     const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
@@ -546,6 +549,8 @@ app.post('/api/contracts', requireLogin, async (req, res) => {
     if (!category || !name || !premium_amount || !premium_cycle) {
       return res.status(400).json({ error: 'Pflichtfelder fehlen' });
     }
+    if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: 'Ungültige Kategorie' });
+    if (!VALID_CYCLES.includes(premium_cycle)) return res.status(400).json({ error: 'Ungültiger Zahlungszyklus' });
 
     const doc = await contracts.insertAsync({
       user_id: req.session.userId,
@@ -580,6 +585,9 @@ app.put('/api/contracts/:id', requireLogin, async (req, res) => {
 
     const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
             cancellation_deadline, renewal_date, is_own_insurer } = req.body;
+    if (!category || !name || !premium_cycle) return res.status(400).json({ error: 'Pflichtfelder fehlen' });
+    if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: 'Ungültige Kategorie' });
+    if (!VALID_CYCLES.includes(premium_cycle)) return res.status(400).json({ error: 'Ungültiger Zahlungszyklus' });
 
     await contracts.updateAsync({ _id: req.params.id }, {
       $set: {
