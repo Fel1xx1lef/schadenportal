@@ -373,6 +373,7 @@ document.getElementById('pwChangeForm').addEventListener('submit', async e => {
       alertEl.className = 'alert alert-success';
       document.getElementById('pwChangeForm').reset();
       sessionStorage.removeItem('pw_expiry_warning');
+      sessionStorage.removeItem('pw_banner_dismissed');
     }
   } catch {
     alertEl.textContent = 'Verbindungsfehler.';

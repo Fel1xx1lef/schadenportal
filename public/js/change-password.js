@@ -40,6 +40,8 @@
         alertEl.textContent = data.error || 'Fehler beim Speichern.';
         alertEl.classList.remove('hidden');
       } else {
+        sessionStorage.removeItem('pw_expiry_warning');
+        sessionStorage.removeItem('pw_banner_dismissed');
         // Nach erfolgreicher Änderung: frische Session-Daten holen für korrektes Routing
         const fresh = await fetch('/api/auth/me').then(r => r.json()).catch(() => me);
         if (fresh.role === 'admin') {

@@ -42,7 +42,7 @@
     <main class="main">
       <div id="pwExpiryBanner" class="alert alert-warning hidden" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
         <span>Ihr Passwort wurde seit mehr als 90 Tagen nicht geändert. <a href="profile.html">Jetzt ändern</a></span>
-        <button onclick="document.getElementById('pwExpiryBanner').classList.add('hidden');sessionStorage.setItem('pw_banner_dismissed','1');" style="background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
+        <button id="pwExpiryDismiss" aria-label="Warnung schließen" style="background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
       </div>
       <div class="page-header">
         <div>

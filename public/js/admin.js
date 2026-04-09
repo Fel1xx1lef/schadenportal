@@ -646,11 +646,16 @@ async function init() {
   if (!me || !me.id) { window.location.href = 'login.html'; return; }
   if (me.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
 
-  if ((me.password_expiry_warning || sessionStorage.getItem('pw_expiry_warning') === '1')
+  const banner = document.getElementById('pwExpiryBanner');
+  if (banner
+      && (me.password_expiry_warning || sessionStorage.getItem('pw_expiry_warning') === '1')
       && sessionStorage.getItem('pw_banner_dismissed') !== '1') {
-    const banner = document.getElementById('pwExpiryBanner');
     banner.classList.remove('hidden');
     banner.style.display = 'flex';
+    document.getElementById('pwExpiryDismiss').addEventListener('click', () => {
+      banner.classList.add('hidden');
+      sessionStorage.setItem('pw_banner_dismissed', '1');
+    });
   }
 
   document.getElementById('logoutBtn').addEventListener('click', async e => {
