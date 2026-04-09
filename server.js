@@ -62,7 +62,7 @@ const PORT = process.env.PORT || 3000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(express.json());
+app.use(express.json({ limit: '50kb' }));
 
 // K2: CSRF-Schutz via Custom-Header-Pattern
 // Browser kann diesen Header bei Cross-Origin-Requests ohne CORS-Preflight nicht setzen.
@@ -661,7 +661,7 @@ app.post('/api/contracts/:id/scan', requireLogin,
       if (contract.scan_image) {
         fs.unlink(path.join(__dirname, 'uploads', 'contracts', contract.scan_image), () => {});
       }
-      await contracts.updateAsync({ _id: req.params.id }, { $set: { scan_image: req.file.filename } });
+      await contracts.updateAsync({ _id: req.params.id, user_id: req.session.userId }, { $set: { scan_image: req.file.filename } });
       res.json({ ok: true, filename: req.file.filename });
     } catch (err) {
       res.status(500).json({ error: 'Serverfehler' });
@@ -674,6 +674,8 @@ app.post('/api/contact', requireLogin, contactLimiter, async (req, res) => {
   try {
     const { subject, message, request_type, callback_time } = req.body;
     if (!subject || !message) return res.status(400).json({ error: 'Betreff und Nachricht erforderlich' });
+    if (subject.length > 200) return res.status(400).json({ error: 'Betreff zu lang (max. 200 Zeichen)' });
+    if (message.length > 5000) return res.status(400).json({ error: 'Nachricht zu lang (max. 5000 Zeichen)' });
 
     await messages.insertAsync({
       user_id: req.session.userId,
