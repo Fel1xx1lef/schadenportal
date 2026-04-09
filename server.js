@@ -7,7 +7,7 @@ const { createClient: createRedisClient } = require('redis');
 const RedisStore = require('connect-redis').default;
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const { generate: totpGenerate, generateSecret: totpGenerateSecret, generateURI: totpGenerateURI, verify: totpVerify } = require('otplib');
+const OTPAuth = require('otpauth');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 const path = require('path');
@@ -431,9 +431,11 @@ app.get('/api/auth/2fa/setup', requireLogin, async (req, res) => {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
 
-    // H8: otplib statt speakeasy
-    const base32Secret = totpGenerateSecret();
-    const otpauthUrl = totpGenerateURI({ issuer: 'Felix Schindelhauer GmbH', label: user.email, secret: base32Secret, type: 'totp' });
+    // H8: otpauth statt speakeasy
+    const secret = new OTPAuth.Secret();
+    const base32Secret = secret.base32;
+    const totp = new OTPAuth.TOTP({ issuer: 'Felix Schindelhauer GmbH', label: user.email, algorithm: 'SHA1', digits: 6, period: 30, secret });
+    const otpauthUrl = totp.toString();
 
     // H6: verschlüsselt zwischenspeichern
     await users.updateAsync({ _id: user._id }, { $set: {
@@ -459,10 +461,10 @@ app.post('/api/auth/2fa/confirm', requireLogin, twoFALimiter, async (req, res) =
       return res.status(400).json({ error: '2FA-Setup nicht gestartet' });
     }
 
-    // H8: otplib; H6: entschlüsseln für Verifikation
+    // H8: otpauth; H6: entschlüsseln für Verifikation
     const tempPlain = decryptTotpSecret(user.totp_secret_temp);
-    const confirmResult = await totpVerify({ secret: tempPlain, token: token.replace(/\s/g, ''), type: 'totp', window: 1 });
-    const valid = confirmResult && confirmResult.valid;
+    const confirmTotp = new OTPAuth.TOTP({ algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(tempPlain) });
+    const valid = confirmTotp.validate({ token: token.replace(/\s/g, ''), window: 1 }) !== null;
 
     if (!valid) return res.status(401).json({ error: 'Ungültiger Code. Bitte erneut versuchen.' });
 
@@ -503,10 +505,10 @@ app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
       return res.status(401).json({ error: 'Code bereits verwendet. Bitte warten Sie auf den nächsten Code.' });
     }
 
-    // H8: otplib; H6: entschlüsseln
+    // H8: otpauth; H6: entschlüsseln
     const secretPlain = decryptTotpSecret(user.totp_secret);
-    const verifyResult = await totpVerify({ secret: secretPlain, token: token.replace(/\s/g, ''), type: 'totp', window: 1 });
-    const valid = verifyResult && verifyResult.valid;
+    const verifyTotp = new OTPAuth.TOTP({ algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(secretPlain) });
+    const valid = verifyTotp.validate({ token: token.replace(/\s/g, ''), window: 1 }) !== null;
 
     if (!valid) return res.status(401).json({ error: 'Ungültiger Code.' });
 
