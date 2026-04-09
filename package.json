@@ -19,7 +19,6 @@
     "otplib": "^13.4.0",
     "qrcode": "^1.5.4",
     "redis": "^5.11.0",
-    "session-file-store": "^1.5.0",
-    "speakeasy": "^2.0.0"
+    "session-file-store": "^1.5.0"
   }
 }

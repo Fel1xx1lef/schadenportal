@@ -7,7 +7,7 @@ const { createClient: createRedisClient } = require('redis');
 const RedisStore = require('connect-redis').default;
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const { authenticator } = require('otplib');
+const { generate: totpGenerate, generateSecret: totpGenerateSecret, generateURI: totpGenerateURI, verify: totpVerify } = require('otplib');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 const path = require('path');
@@ -392,9 +392,8 @@ app.get('/api/auth/2fa/setup', requireLogin, async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
 
     // H8: otplib statt speakeasy
-    authenticator.options = { window: 1 };
-    const base32Secret = authenticator.generateSecret(20);
-    const otpauthUrl = authenticator.keyuri(user.email, 'Felix Schindelhauer GmbH', base32Secret);
+    const base32Secret = totpGenerateSecret();
+    const otpauthUrl = totpGenerateURI({ issuer: 'Felix Schindelhauer GmbH', label: user.email, secret: base32Secret, type: 'totp' });
 
     // H6: verschlüsselt zwischenspeichern
     await users.updateAsync({ _id: user._id }, { $set: {
@@ -421,9 +420,9 @@ app.post('/api/auth/2fa/confirm', requireLogin, twoFALimiter, async (req, res) =
     }
 
     // H8: otplib; H6: entschlüsseln für Verifikation
-    authenticator.options = { window: 1 };
     const tempPlain = decryptTotpSecret(user.totp_secret_temp);
-    const valid = authenticator.verify({ token: token.replace(/\s/g, ''), secret: tempPlain });
+    const confirmResult = await totpVerify({ secret: tempPlain, token: token.replace(/\s/g, ''), type: 'totp', window: 1 });
+    const valid = confirmResult && confirmResult.valid;
 
     if (!valid) return res.status(401).json({ error: 'Ungültiger Code. Bitte erneut versuchen.' });
 
@@ -465,9 +464,9 @@ app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
     }
 
     // H8: otplib; H6: entschlüsseln
-    authenticator.options = { window: 1 };
     const secretPlain = decryptTotpSecret(user.totp_secret);
-    const valid = authenticator.verify({ token: token.replace(/\s/g, ''), secret: secretPlain });
+    const verifyResult = await totpVerify({ secret: secretPlain, token: token.replace(/\s/g, ''), type: 'totp', window: 1 });
+    const valid = verifyResult && verifyResult.valid;
 
     if (!valid) return res.status(401).json({ error: 'Ungültiger Code.' });
 
@@ -1017,6 +1016,28 @@ app.delete('/api/admin/appointments/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// H6: Bestehende Plaintext TOTP-Secrets beim Start verschlüsseln
+async function migrateTotpSecrets() {
+  if (!TOTP_KEY) return; // Kein Key → nichts zu tun
+  try {
+    const usersWithTotp = await users.findAsync({ totp_enabled: true, totp_secret: { $exists: true } });
+    let count = 0;
+    for (const user of usersWithTotp) {
+      if (!user.totp_secret.includes(':')) {
+        // Noch Plaintext → verschlüsseln
+        const encrypted = encryptTotpSecret(user.totp_secret);
+        await users.updateAsync({ _id: user._id }, { $set: { totp_secret: encrypted } });
+        count++;
+      }
+    }
+    if (count > 0) {
+      console.log(`✓ TOTP-Migration: ${count} Secret(s) verschlüsselt`);
+    }
+  } catch (err) {
+    console.error('Warnung: TOTP-Secret-Migration fehlgeschlagen:', err.message);
+  }
+}
+
 async function migratePasswordFields() {
   try {
     const result = await users.updateAsync(
@@ -1059,7 +1080,7 @@ async function runRetentionJob() {
 const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-Promise.all([seedAdmin(), seedSettings(), migratePasswordFields()]).then(() => {
+Promise.all([seedAdmin(), seedSettings(), migratePasswordFields(), migrateTotpSecrets()]).then(() => {
   // D4: Retention-Job beim Start und dann täglich
   runRetentionJob();
   setInterval(runRetentionJob, RETENTION_INTERVAL_MS);
