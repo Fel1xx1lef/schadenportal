@@ -3,7 +3,9 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 
-const dataDir = path.join(__dirname, 'data');
+// DATA_DIR kann als Umgebungsvariable gesetzt werden (z.B. Railway Volume-Mount).
+// Fallback: lokales ./data Verzeichnis (nur für Entwicklung geeignet).
+const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(path.join(dataDir, 'sessions'), { recursive: true });
 
 const users = new Datastore({ filename: path.join(dataDir, 'users.db'), autoload: true });

@@ -20,10 +20,14 @@ const multer = require('multer');
 const ALLOWED_UPLOAD_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
 const ALLOWED_UPLOAD_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 
+// UPLOADS_DIR kann als Umgebungsvariable gesetzt werden (z.B. Railway Volume-Mount).
+// Fallback: lokales ./uploads Verzeichnis (nur für Entwicklung geeignet).
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
+
 const uploadScan = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = path.join(__dirname, 'uploads', 'contracts');
+      const dir = path.join(UPLOADS_DIR, 'contracts');
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
     },
@@ -183,7 +187,7 @@ app.get('/uploads/contracts/:filename', requireLogin, async (req, res) => {
   if (!contract && req.session.userRole !== 'admin') {
     return res.status(403).json({ error: 'Kein Zugriff' });
   }
-  res.sendFile(path.join(__dirname, 'uploads', 'contracts', filename));
+  res.sendFile(path.join(UPLOADS_DIR, 'contracts', filename));
 });
 
 // ── Auth Routes ───────────────────────────────────────────────────────────────
@@ -342,7 +346,7 @@ app.delete('/api/auth/account', requireLogin, loginLimiter, async (req, res) => 
     const userContracts = await contracts.findAsync({ user_id: userId });
     for (const c of userContracts) {
       if (c.scan_image) {
-        fs.unlink(path.join(__dirname, 'uploads', 'contracts', c.scan_image), () => {});
+        fs.unlink(path.join(UPLOADS_DIR, 'contracts', c.scan_image), () => {});
       }
     }
 
@@ -647,7 +651,7 @@ app.delete('/api/contracts/:id', requireLogin, async (req, res) => {
     if (contract.added_by_role === 'admin') return res.status(403).json({ error: 'Agentur-Verträge können nicht gelöscht werden' });
 
     if (contract.scan_image) {
-      fs.unlink(path.join(__dirname, 'uploads', 'contracts', contract.scan_image), () => {});
+      fs.unlink(path.join(UPLOADS_DIR, 'contracts', contract.scan_image), () => {});
     }
     await contracts.removeAsync({ _id: req.params.id });
     await logActivity(req.session.userId, 'contract_deleted', null);
@@ -666,7 +670,7 @@ app.post('/api/contracts/:id/scan', requireLogin,
       const contract = await contracts.findOneAsync({ _id: req.params.id, user_id: req.session.userId });
       if (!contract) return res.status(404).json({ error: 'Vertrag nicht gefunden' });
       if (contract.scan_image) {
-        fs.unlink(path.join(__dirname, 'uploads', 'contracts', contract.scan_image), () => {});
+        fs.unlink(path.join(UPLOADS_DIR, 'contracts', contract.scan_image), () => {});
       }
       await contracts.updateAsync({ _id: req.params.id, user_id: req.session.userId }, { $set: { scan_image: req.file.filename } });
       res.json({ ok: true, filename: req.file.filename });
@@ -988,7 +992,7 @@ app.delete('/api/admin/customers/:id', requireAdmin, async (req, res) => {
     const userContracts = await contracts.findAsync({ user_id: req.params.id });
     for (const c of userContracts) {
       if (c.scan_image) {
-        fs.unlink(path.join(__dirname, 'uploads', 'contracts', c.scan_image), () => {});
+        fs.unlink(path.join(UPLOADS_DIR, 'contracts', c.scan_image), () => {});
       }
     }
 
