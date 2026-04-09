@@ -203,6 +203,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 
     await users.updateAsync({ _id: user._id }, { $set: { last_login_at: new Date().toISOString() } });
+    await logActivity(user._id, 'login_success', null);
 
     req.session.userId = user._id;
     req.session.userRole = user.role;
@@ -309,6 +310,7 @@ app.post('/api/auth/change-password', requireLogin, loginLimiter, async (req, re
       $set: { password_hash: hash, password_changed_at: new Date().toISOString() },
       $unset: { must_change_password: true }
     });
+    await logActivity(req.session.userId, 'password_changed', null);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -488,6 +490,8 @@ app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
     req.session.userId = user._id;
     req.session.userRole = user.role;
     req.session.userEmail = user.email;
+
+    await logActivity(user._id, 'login_success_2fa', null);
 
     const flags = buildPasswordFlags(user);
     res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), ...flags });
