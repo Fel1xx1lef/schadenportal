@@ -1,6 +1,6 @@
 const PROFILE_FIELDS = [
   'full_name', 'birth_date', 'marital_status', 'spouse_name',
-  'phone', 'mobile', 'gross_income', 'net_income',
+  'phone', 'mobile', 'gross_income',
   'health_insurance_type', 'health_insurance_provider',
   'beruf', 'berufsgruppe', 'wohneigentum',
   'rente', 'minijob', 'kindergeld', 'andere_einkuenfte'
@@ -154,7 +154,6 @@ async function init() {
   document.getElementById('fPhone').value = profile.phone || '';
   document.getElementById('fMobile').value = profile.mobile || '';
   document.getElementById('fGrossIncome').value = profile.gross_income || '';
-  document.getElementById('fNetIncome').value = profile.net_income || '';
   document.getElementById('fKvProvider').value = profile.health_insurance_provider || '';
   document.getElementById('fBeruf').value = profile.beruf || '';
   document.getElementById('fBerufsgruppe').value = profile.berufsgruppe || '';
@@ -172,10 +171,7 @@ async function init() {
 
   document.getElementById('fAusgabenMiete').value             = profile.ausgaben_miete             || '';
   document.getElementById('fAusgabenNebenkosten').value       = profile.ausgaben_nebenkosten       || '';
-  document.getElementById('fAusgabenLebensmittel').value      = profile.ausgaben_lebensmittel      || '';
   document.getElementById('fAusgabenMobilitaet').value        = profile.ausgaben_mobilitaet        || '';
-  document.getElementById('fAusgabenFreizeit').value          = profile.ausgaben_freizeit          || '';
-  document.getElementById('fAusgabenKleidung').value          = profile.ausgaben_kleidung          || '';
 
   // Vertragskosten laden und automatisch anzeigen
   const contracts = await fetch('/api/contracts').then(r => r.json()).catch(() => []);
@@ -295,7 +291,6 @@ async function init() {
       phone:                      document.getElementById('fPhone').value,
       mobile:                     document.getElementById('fMobile').value,
       gross_income:               document.getElementById('fGrossIncome').value,
-      net_income:                 document.getElementById('fNetIncome').value,
       health_insurance_type:      document.getElementById('fKvType').value,
       health_insurance_provider:  document.getElementById('fKvProvider').value,
       beruf:                      document.getElementById('fBeruf').value,
@@ -311,10 +306,7 @@ async function init() {
       andere_einkuenfte:          document.getElementById('fAndereEinkuenfte').value,
       ausgaben_miete:             document.getElementById('fAusgabenMiete').value,
       ausgaben_nebenkosten:       document.getElementById('fAusgabenNebenkosten').value,
-      ausgaben_lebensmittel:      document.getElementById('fAusgabenLebensmittel').value,
-      ausgaben_mobilitaet:        document.getElementById('fAusgabenMobilitaet').value,
-      ausgaben_freizeit:          document.getElementById('fAusgabenFreizeit').value,
-      ausgaben_kleidung:          document.getElementById('fAusgabenKleidung').value
+      ausgaben_mobilitaet:        document.getElementById('fAusgabenMobilitaet').value
     };
 
     const res = await fetch('/api/profile', {

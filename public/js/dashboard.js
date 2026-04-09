@@ -62,8 +62,7 @@ async function init() {
   // Haushalt-Kosten aus Profil
   const vp = key => parseFloat(profile[key]) || 0;
   const haushaltsMonthly =
-    vp('ausgaben_miete') + vp('ausgaben_nebenkosten') + vp('ausgaben_lebensmittel') +
-    vp('ausgaben_mobilitaet') + vp('ausgaben_freizeit') + vp('ausgaben_kleidung');
+    vp('ausgaben_miete') + vp('ausgaben_nebenkosten') + vp('ausgaben_mobilitaet');
 
   const totalMonthly = insMonthly + subMonthly + othMonthly + haushaltsMonthly;
 
@@ -105,11 +104,10 @@ function renderFinanzuebersicht(profile, insMonthly, subMonthly, othMonthly) {
   const v = key => parseFloat(profile[key]) || 0;
 
   const einnahmen =
-    v('net_income') + v('rente') + v('minijob') + v('kindergeld') + v('andere_einkuenfte');
+    v('gross_income') + v('rente') + v('minijob') + v('kindergeld') + v('andere_einkuenfte');
 
   const ausgaben =
-    v('ausgaben_miete') + v('ausgaben_nebenkosten') + v('ausgaben_lebensmittel') +
-    v('ausgaben_mobilitaet') + v('ausgaben_freizeit') + v('ausgaben_kleidung') +
+    v('ausgaben_miete') + v('ausgaben_nebenkosten') + v('ausgaben_mobilitaet') +
     insMonthly + subMonthly + othMonthly;
 
   const bilanz = einnahmen - ausgaben;
