@@ -271,7 +271,7 @@ const INQUIRY_FIELDS = {
     { id: 'beruf',     label: 'Beruf / Tätigkeit *',       type: 'text',   placeholder: 'z.B. Bürokaufmann, Krankenpfleger', required: true },
     { id: 'geb',       label: 'Geburtsjahr *',             type: 'number', placeholder: 'z.B. 1990', profileKey: 'birth_year', required: true },
     { id: 'brutto',    label: 'Bruttoeinkommen (€/Monat)', type: 'number', placeholder: '0,00', profileKey: 'gross_income' },
-    { id: 'netto',     label: 'Nettoeinkommen (€/Monat)',  type: 'number', placeholder: '0,00', profileKey: 'net_income' },
+    { id: 'netto',     label: 'Nettoeinkommen (€/Monat)',  type: 'number', placeholder: '0,00' },
     { id: 'raucher',   label: 'Raucherstatus *',           type: 'select', options: ['Bitte wählen…', 'Nichtraucher', 'Raucher'], required: true },
   ],
   'Risikolebensversicherung': [
@@ -284,7 +284,7 @@ const INQUIRY_FIELDS = {
   'Krankentagegeld': [
     { id: 'beruf',     label: 'Beruf / Tätigkeit',         type: 'text',   placeholder: 'z.B. Kaufmann' },
     { id: 'status',    label: 'Beschäftigungsstatus *',    type: 'select', options: ['Bitte wählen…', 'Angestellt', 'Selbstständig', 'Beamter'], required: true },
-    { id: 'netto',     label: 'Nettoeinkommen (€/Monat)',  type: 'number', placeholder: '0,00', profileKey: 'net_income' },
+    { id: 'netto',     label: 'Nettoeinkommen (€/Monat)',  type: 'number', placeholder: '0,00' },
     { id: 'kk',        label: 'Krankenkasse',              type: 'text',   placeholder: 'z.B. AOK, Techniker Krankenkasse', profileKey: 'health_insurance_provider' },
     { id: 'geb',       label: 'Geburtsjahr',               type: 'number', placeholder: 'z.B. 1990', profileKey: 'birth_year' },
   ],
