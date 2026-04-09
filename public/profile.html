@@ -147,7 +147,7 @@
           <div class="card animate-in">
             <div class="card-title"><span class="icon">💰</span>Einkommen</div>
             <div class="form-group">
-              <label>Bruttoeinkommen (€ / Monat)</label>
+              <label>Nettoeinkommen (€ / Monat)</label>
               <input type="number" id="fGrossIncome" class="form-control" placeholder="0,00" min="0" step="0.01">
             </div>
             <p style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 12px;">Weitere Einkommensquellen</p>
@@ -205,14 +205,9 @@
             </div>
           </div>
 
-          <!-- Krankenversicherung (Art. 9 DSGVO — nur mit Einwilligung) -->
+          <!-- Krankenversicherung (Art. 6 Abs. 1 lit. b DSGVO) -->
           <div class="card animate-in" id="kvCard">
             <div class="card-title"><span class="icon">🏥</span>Krankenversicherung</div>
-            <!-- Hinweis wenn keine Einwilligung -->
-            <div id="kvConsentHint" class="alert alert-warning hidden" style="margin-bottom:14px;">
-              Diese Daten sind besondere Kategorien nach Art. 9 DSGVO.
-              Bitte erteile zuerst die <a href="consent.html" style="font-weight:600;">Einwilligung zur Verarbeitung von Krankenversicherungsdaten</a>.
-            </div>
             <div id="kvFields">
               <div class="form-group">
                 <label>Versicherungsart</label>
@@ -290,7 +285,7 @@
             <div style="background:var(--success-light);border:1px solid #c6e9b0;border-radius:var(--radius);padding:18px 20px;">
               <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--success);margin-bottom:8px;">Gesamteinnahmen</div>
               <div id="fzGesamteinnahmen" class="fz-amount" style="color:var(--success);">€ 0,00</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Brutto + weitere Quellen</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Netto + weitere Quellen</div>
             </div>
             <div style="background:var(--danger-light);border:1px solid #fca5a5;border-radius:var(--radius);padding:18px 20px;">
               <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);margin-bottom:8px;">Gesamtausgaben</div>
@@ -316,8 +311,8 @@
         <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">
           Du hast das Recht, alle über dich gespeicherten Daten zu erhalten (Art. 15 DSGVO). Der Export enthält dein Profil, Verträge, Nachrichten, Termine und Aktivitätsprotokolle.
         </p>
-        <a href="/api/auth/data-export" class="btn btn-secondary" download="meine-daten.json">
-          Daten als JSON herunterladen
+        <a href="/api/auth/data-export" class="btn btn-secondary" download="meine-daten.txt">
+          Daten als TXT herunterladen
         </a>
       </div>
 

@@ -270,7 +270,7 @@ const INQUIRY_FIELDS = {
   'Berufsunfähigkeitsversicherung': [
     { id: 'beruf',     label: 'Beruf / Tätigkeit *',       type: 'text',   placeholder: 'z.B. Bürokaufmann, Krankenpfleger', required: true },
     { id: 'geb',       label: 'Geburtsjahr *',             type: 'number', placeholder: 'z.B. 1990', profileKey: 'birth_year', required: true },
-    { id: 'brutto',    label: 'Bruttoeinkommen (€/Monat)', type: 'number', placeholder: '0,00', profileKey: 'gross_income' },
+    { id: 'brutto',    label: 'Nettoeinkommen (€/Monat)',  type: 'number', placeholder: '0,00', profileKey: 'gross_income' },
     { id: 'netto',     label: 'Nettoeinkommen (€/Monat)',  type: 'number', placeholder: '0,00' },
     { id: 'raucher',   label: 'Raucherstatus *',           type: 'select', options: ['Bitte wählen…', 'Nichtraucher', 'Raucher'], required: true },
   ],

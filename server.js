@@ -250,7 +250,6 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
       phone: user.phone || '',
       consent_given: !!(user.terms_accepted_at || user.consent_given),
       consent_analysis: !!user.consent_analysis,
-      consent_health_data: !!user.consent_health_data,
       totp_enabled: !!user.totp_enabled,
       requires_password_change,
       password_expiry_warning
@@ -263,15 +262,12 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
 // Einwilligung – nur Analyse (Portalnutzung basiert auf Nutzungsverhältnis, kein Opt-in nötig)
 app.post('/api/auth/consent', requireLogin, async (req, res) => {
   try {
-    const { consent_analysis, consent_health_data } = req.body;
+    const { consent_analysis } = req.body;
     await users.updateAsync({ _id: req.session.userId }, { $set: {
       terms_accepted_at: new Date().toISOString(),
       consent_given: true,  // Kompatibilität mit bestehendem Login-Check
       consent_analysis: !!consent_analysis,
-      consent_analysis_at: new Date().toISOString(),
-      // D2: Separate Einwilligung für Gesundheitsdaten (Art. 9 DSGVO)
-      consent_health_data: !!consent_health_data,
-      consent_health_data_at: new Date().toISOString()
+      consent_analysis_at: new Date().toISOString()
     }});
     res.json({ ok: true });
   } catch (err) {
@@ -283,16 +279,11 @@ app.post('/api/auth/consent', requireLogin, async (req, res) => {
 // Analyse-Einwilligung widerrufbar
 app.put('/api/auth/consent', requireLogin, async (req, res) => {
   try {
-    const { consent_analysis, consent_health_data } = req.body;
+    const { consent_analysis } = req.body;
     const update = {
       consent_analysis: !!consent_analysis,
       consent_analysis_at: new Date().toISOString()
     };
-    if (consent_health_data !== undefined) {
-      // D2: Gesundheitsdaten-Einwilligung ebenfalls widerrufbar
-      update.consent_health_data = !!consent_health_data;
-      update.consent_health_data_at = new Date().toISOString();
-    }
     await users.updateAsync({ _id: req.session.userId }, { $set: update });
     res.json({ ok: true });
   } catch (err) {
@@ -390,8 +381,8 @@ app.get('/api/auth/data-export', requireLogin, async (req, res) => {
         berufsgruppe: user.berufsgruppe || '',
         wohneigentum: user.wohneigentum || '',
         gross_income: user.gross_income || '',
-        health_insurance_type: user.consent_health_data ? (user.health_insurance_type || '') : '(Einwilligung nicht erteilt)',
-        health_insurance_provider: user.consent_health_data ? (user.health_insurance_provider || '') : '(Einwilligung nicht erteilt)',
+        health_insurance_type: user.health_insurance_type || '',
+        health_insurance_provider: user.health_insurance_provider || '',
         rente: user.rente || '',
         minijob: user.minijob || '',
         kindergeld: user.kindergeld || '',
@@ -403,7 +394,6 @@ app.get('/api/auth/data-export', requireLogin, async (req, res) => {
         last_login_at: user.last_login_at || null,
         totp_enabled: !!user.totp_enabled,
         consent_analysis: !!user.consent_analysis,
-        consent_health_data: !!user.consent_health_data,
         consent_given_at: user.terms_accepted_at || user.consent_given_at || null
       },
       contracts: userContracts.map(({ _id, user_id, ...rest }) => rest),
@@ -413,8 +403,92 @@ app.get('/api/auth/data-export', requireLogin, async (req, res) => {
       exported_at: new Date().toISOString()
     };
 
-    res.setHeader('Content-Disposition', 'attachment; filename="meine-daten.json"');
-    res.json(exportData);
+    const p = exportData.profile;
+    const fmt = v => (v === null || v === undefined || v === '') ? '–' : String(v);
+    const fmtDate = v => v ? new Date(v).toLocaleString('de-DE') : '–';
+    const hr = (title) => `\n${'='.repeat(60)}\n  ${title}\n${'='.repeat(60)}\n`;
+    const line = (label, value) => `  ${label.padEnd(30)} ${fmt(value)}\n`;
+
+    let txt = '';
+    txt += 'Datenschutz-Auskunft nach Art. 15 DSGVO\n';
+    txt += 'Felix Schindelhauer GmbH (Continentale)\n';
+    txt += `Erstellt am: ${fmtDate(exportData.exported_at)}\n`;
+
+    txt += hr('PROFIL');
+    txt += line('E-Mail', p.email);
+    txt += line('Name', p.full_name);
+    txt += line('Telefon', p.phone);
+    txt += line('Mobil', p.mobile);
+    txt += line('Geburtsdatum', p.birth_date);
+    txt += line('Familienstand', p.marital_status);
+    txt += line('Name Partner/in', p.spouse_name);
+    txt += line('Beruf', p.beruf);
+    txt += line('Berufsgruppe', p.berufsgruppe);
+    txt += line('Wohneigentum', p.wohneigentum);
+    txt += line('Nettoeinkommen (€)', p.gross_income);
+    txt += line('Krankenversicherungsart', p.health_insurance_type);
+    txt += line('Krankenversicherung', p.health_insurance_provider);
+    txt += line('Rente (€)', p.rente);
+    txt += line('Minijob (€)', p.minijob);
+    txt += line('Kindergeld (€)', p.kindergeld);
+    txt += line('Andere Einkünfte (€)', p.andere_einkuenfte);
+    txt += line('Miete (€)', p.ausgaben_miete);
+    txt += line('Nebenkosten (€)', p.ausgaben_nebenkosten);
+    txt += line('Mobilität (€)', p.ausgaben_mobilitaet);
+    txt += line('2FA aktiv', p.totp_enabled ? 'Ja' : 'Nein');
+    txt += line('Analyse-Einwilligung', p.consent_analysis ? 'Ja' : 'Nein');
+    txt += line('Konto erstellt', fmtDate(p.created_at));
+    txt += line('Letzter Login', fmtDate(p.last_login_at));
+    txt += line('Einwilligung erteilt am', fmtDate(p.consent_given_at));
+
+    txt += hr('VERTRÄGE');
+    if (exportData.contracts.length === 0) {
+      txt += '  Keine Verträge vorhanden.\n';
+    } else {
+      exportData.contracts.forEach((c, i) => {
+        txt += `\n  Vertrag ${i + 1}\n`;
+        Object.entries(c).forEach(([k, v]) => { txt += line('  ' + k, v); });
+      });
+    }
+
+    txt += hr('NACHRICHTEN');
+    if (exportData.messages.length === 0) {
+      txt += '  Keine Nachrichten vorhanden.\n';
+    } else {
+      exportData.messages.forEach((m, i) => {
+        txt += `\n  Nachricht ${i + 1}\n`;
+        txt += line('  Datum', fmtDate(m.created_at));
+        txt += line('  Von', m.sender_role === 'admin' ? 'Berater' : 'Ich');
+        txt += `  Text: ${fmt(m.text)}\n`;
+      });
+    }
+
+    txt += hr('TERMINE');
+    if (exportData.appointments.length === 0) {
+      txt += '  Keine Termine vorhanden.\n';
+    } else {
+      exportData.appointments.forEach((a, i) => {
+        txt += `\n  Termin ${i + 1}\n`;
+        txt += line('  Datum/Uhrzeit', fmtDate(a.datetime || a.date));
+        txt += line('  Betreff', a.subject || a.title);
+        txt += line('  Status', a.status);
+      });
+    }
+
+    txt += hr('AKTIVITÄTSPROTOKOLLE');
+    if (exportData.activity_log.length === 0) {
+      txt += '  Keine Einträge vorhanden.\n';
+    } else {
+      exportData.activity_log.forEach(entry => {
+        txt += `  ${fmtDate(entry.created_at)}  ${fmt(entry.action)}\n`;
+      });
+    }
+
+    txt += '\n' + '='.repeat(60) + '\n';
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="meine-daten.txt"');
+    res.send(txt);
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
   }
@@ -753,13 +827,6 @@ app.put('/api/profile', requireLogin, async (req, res) => {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
 
-    // D2: Gesundheitsdaten (Art. 9 DSGVO) nur speichern wenn Einwilligung vorhanden
-    const HEALTH_FIELDS = ['health_insurance_type', 'health_insurance_provider'];
-    const wantsHealthData = HEALTH_FIELDS.some(f => req.body[f] !== undefined && req.body[f] !== '');
-    if (wantsHealthData && !user.consent_health_data) {
-      return res.status(403).json({ error: 'Einwilligung zur Verarbeitung von Krankenversicherungsdaten erforderlich (Art. 9 DSGVO). Bitte zuerst unter Datenschutz & Einwilligungen aktivieren.' });
-    }
-
     const allowed = ['full_name', 'phone', 'mobile', 'birth_date', 'marital_status',
       'spouse_name', 'health_insurance_type', 'health_insurance_provider',
       'gross_income', 'beruf', 'berufsgruppe', 'wohneigentum',
@@ -851,9 +918,7 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
 
     const contractList = await contracts.findAsync({ user_id: req.session.userId });
     const profileComplete = !!(user.health_insurance_type || user.gross_income || user.marital_status);
-    // D2: Gesundheitsdaten nur verwenden wenn consent_health_data erteilt
-    const profileForRecs = user.consent_health_data ? user : { ...user, health_insurance_type: undefined, health_insurance_provider: undefined };
-    const recs = generateRecommendations(profileForRecs, contractList);
+    const recs = generateRecommendations(user, contractList);
     res.json({ recommendations: recs, profile_complete: profileComplete });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });

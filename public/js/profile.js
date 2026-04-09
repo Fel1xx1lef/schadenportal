@@ -182,15 +182,7 @@ async function init() {
   document.getElementById('autoAbos').textContent           = formatEuro(contractAbos);
   document.getElementById('autoSonstiges').textContent      = formatEuro(contractSonstiges);
 
-  // D2: KV-Felder nur zeigen/aktivieren wenn Einwilligung vorhanden
-  if (me.consent_health_data) {
-    document.getElementById('kvConsentHint').classList.add('hidden');
-    if (profile.health_insurance_type) setKvType(profile.health_insurance_type);
-  } else {
-    document.getElementById('kvConsentHint').classList.remove('hidden');
-    document.getElementById('kvFields').style.opacity = '0.4';
-    document.getElementById('kvFields').style.pointerEvents = 'none';
-  }
+  if (profile.health_insurance_type) setKvType(profile.health_insurance_type);
   toggleSpouseField();
   updateCompletionBar(profile);
   updateFinanzuebersicht();
