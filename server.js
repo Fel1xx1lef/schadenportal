@@ -702,6 +702,16 @@ app.put('/api/profile', requireLogin, async (req, res) => {
       'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
       'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet'
     ]);
+    const user = await users.findOneAsync({ _id: req.session.userId });
+    if (!user) return res.status(401).json({ error: 'Session ungültig' });
+
+    // D2: Gesundheitsdaten (Art. 9 DSGVO) nur speichern wenn Einwilligung vorhanden
+    const HEALTH_FIELDS = ['health_insurance_type', 'health_insurance_provider'];
+    const wantsHealthData = HEALTH_FIELDS.some(f => req.body[f] !== undefined && req.body[f] !== '');
+    if (wantsHealthData && !user.consent_health_data) {
+      return res.status(403).json({ error: 'Einwilligung zur Verarbeitung von Krankenversicherungsdaten erforderlich (Art. 9 DSGVO). Bitte zuerst unter Datenschutz & Einwilligungen aktivieren.' });
+    }
+
     const allowed = ['full_name', 'phone', 'mobile', 'birth_date', 'marital_status',
       'spouse_name', 'health_insurance_type', 'health_insurance_provider',
       'gross_income', 'beruf', 'berufsgruppe', 'wohneigentum',

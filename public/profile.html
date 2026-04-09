@@ -205,20 +205,27 @@
             </div>
           </div>
 
-          <!-- Krankenversicherung -->
-          <div class="card animate-in">
+          <!-- Krankenversicherung (Art. 9 DSGVO — nur mit Einwilligung) -->
+          <div class="card animate-in" id="kvCard">
             <div class="card-title"><span class="icon">🏥</span>Krankenversicherung</div>
-            <div class="form-group">
-              <label>Versicherungsart</label>
-              <div class="toggle-group" id="kvToggle" style="margin-top:6px;">
-                <button type="button" class="toggle-btn" data-kv="gkv">GKV (gesetzlich)</button>
-                <button type="button" class="toggle-btn" data-kv="pkv">PKV (privat)</button>
-              </div>
-              <input type="hidden" id="fKvType" value="">
+            <!-- Hinweis wenn keine Einwilligung -->
+            <div id="kvConsentHint" class="alert alert-warning hidden" style="margin-bottom:14px;">
+              Diese Daten sind besondere Kategorien nach Art. 9 DSGVO.
+              Bitte erteile zuerst die <a href="consent.html" style="font-weight:600;">Einwilligung zur Verarbeitung von Krankenversicherungsdaten</a>.
             </div>
-            <div class="form-group" id="kvProviderGroup" style="display:none">
-              <label id="kvProviderLabel">Krankenkasse</label>
-              <input type="text" id="fKvProvider" class="form-control" placeholder="z.B. AOK, Techniker Krankenkasse…">
+            <div id="kvFields">
+              <div class="form-group">
+                <label>Versicherungsart</label>
+                <div class="toggle-group" id="kvToggle" style="margin-top:6px;">
+                  <button type="button" class="toggle-btn" data-kv="gkv">GKV (gesetzlich)</button>
+                  <button type="button" class="toggle-btn" data-kv="pkv">PKV (privat)</button>
+                </div>
+                <input type="hidden" id="fKvType" value="">
+              </div>
+              <div class="form-group" id="kvProviderGroup" style="display:none">
+                <label id="kvProviderLabel">Krankenkasse</label>
+                <input type="text" id="fKvProvider" class="form-control" placeholder="z.B. AOK, Techniker Krankenkasse…">
+              </div>
             </div>
           </div>
 
