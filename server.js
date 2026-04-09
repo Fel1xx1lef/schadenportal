@@ -149,6 +149,13 @@ function decryptTotpSecret(stored) {
   return decipher.update(Buffer.from(dataHex, 'hex')) + decipher.final('utf8');
 }
 
+function validateEmail(email) {
+  if (!email || typeof email !== 'string') return 'E-Mail erforderlich';
+  if (email.length > 254) return 'E-Mail-Adresse zu lang';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Ungültige E-Mail-Adresse';
+  return null;
+}
+
 // H3: Password strength validation (min 12 chars, upper, lower, digit)
 function validatePasswordStrength(password) {
   if (password.length < 12) return 'Passwort muss mindestens 12 Zeichen haben';
@@ -895,6 +902,8 @@ app.post('/api/admin/admins', requireAdmin, async (req, res) => {
   try {
     const { email, full_name, password } = req.body;
     if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
+    const emailError = validateEmail(email);
+    if (emailError) return res.status(400).json({ error: emailError });
     const pwError = validatePasswordStrength(password);
     if (pwError) return res.status(400).json({ error: pwError });
     const hash = await bcrypt.hash(password, 12);
@@ -948,6 +957,8 @@ app.post('/api/admin/customers', requireAdmin, async (req, res) => {
   try {
     const { email, full_name, password } = req.body;
     if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
+    const emailError = validateEmail(email);
+    if (emailError) return res.status(400).json({ error: emailError });
     const pwError = validatePasswordStrength(password);
     if (pwError) return res.status(400).json({ error: pwError });
 
