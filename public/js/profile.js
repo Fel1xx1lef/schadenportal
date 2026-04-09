@@ -91,7 +91,7 @@ function updateFinanzuebersicht() {
   const val = id => parseFloat(document.getElementById(id).value) || 0;
 
   const einnahmen =
-    val('fNetIncome') +
+    val('fGrossIncome') +
     val('fRente') +
     val('fMinijob') +
     val('fKindergeld') +
@@ -100,10 +100,7 @@ function updateFinanzuebersicht() {
   const ausgaben =
     val('fAusgabenMiete') +
     val('fAusgabenNebenkosten') +
-    val('fAusgabenLebensmittel') +
     val('fAusgabenMobilitaet') +
-    val('fAusgabenFreizeit') +
-    val('fAusgabenKleidung') +
     contractInsurance + contractAbos + contractSonstiges;
 
   const bilanz = einnahmen - ausgaben;
@@ -229,9 +226,8 @@ async function init() {
 
   // Live-Berechnung Finanzübersicht
   const FINANZ_IDS = [
-    'fNetIncome', 'fRente', 'fMinijob', 'fKindergeld', 'fAndereEinkuenfte',
-    'fAusgabenMiete', 'fAusgabenNebenkosten', 'fAusgabenLebensmittel',
-    'fAusgabenMobilitaet', 'fAusgabenFreizeit', 'fAusgabenKleidung'
+    'fGrossIncome', 'fRente', 'fMinijob', 'fKindergeld', 'fAndereEinkuenfte',
+    'fAusgabenMiete', 'fAusgabenNebenkosten', 'fAusgabenMobilitaet'
   ];
   FINANZ_IDS.forEach(id =>
     document.getElementById(id).addEventListener('input', updateFinanzuebersicht));

@@ -121,6 +121,12 @@ const twoFALimiter = rateLimit({
   message: { error: 'Zu viele Versuche. Bitte 15 Minuten warten.' }
 });
 
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 Stunde
+  max: 10,
+  message: { error: 'Zu viele Nachrichten. Bitte später erneut versuchen.' }
+});
+
 const PASSWORD_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
 
 // H6: TOTP-Secret AES-256-GCM Verschlüsselung
@@ -631,7 +637,7 @@ app.post('/api/contracts/:id/scan', requireLogin,
 );
 
 // ── Contact Routes ────────────────────────────────────────────────────────────
-app.post('/api/contact', requireLogin, async (req, res) => {
+app.post('/api/contact', requireLogin, contactLimiter, async (req, res) => {
   try {
     const { subject, message, request_type, callback_time } = req.body;
     if (!subject || !message) return res.status(400).json({ error: 'Betreff und Nachricht erforderlich' });
@@ -787,7 +793,9 @@ app.get('/api/recommendations', requireLogin, async (req, res) => {
 
     const contractList = await contracts.findAsync({ user_id: req.session.userId });
     const profileComplete = !!(user.health_insurance_type || user.gross_income || user.marital_status);
-    const recs = generateRecommendations(user, contractList);
+    // D2: Gesundheitsdaten nur verwenden wenn consent_health_data erteilt
+    const profileForRecs = user.consent_health_data ? user : { ...user, health_insurance_type: undefined, health_insurance_provider: undefined };
+    const recs = generateRecommendations(profileForRecs, contractList);
     res.json({ recommendations: recs, profile_complete: profileComplete });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -932,6 +940,7 @@ app.delete('/api/admin/customers/:id', requireAdmin, async (req, res) => {
     await contracts.removeAsync({ user_id: req.params.id }, { multi: true });
     await messages.removeAsync({ user_id: req.params.id }, { multi: true });
     await activityLog.removeAsync({ user_id: req.params.id }, { multi: true });
+    await appointments.removeAsync({ user_id: req.params.id }, { multi: true });
 
     await logActivity(req.session.userId, 'admin_customer_deleted', null);
     res.json({ ok: true });
