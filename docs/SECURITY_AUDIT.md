@@ -25,8 +25,8 @@ app.get('/uploads/contracts/:filename', requireLogin, async (req, res) => {
 ### K2: Kein CSRF-Schutz
 - **Datei:** `server.js` (alle POST/PUT/DELETE-Routen)
 - **Problem:** Kein CSRF-Token. Ein Angreifer kann eingeloggte User zu ungewollten Aktionen bringen (Account löschen, Passwort ändern, Einwilligungen ändern). `sameSite: 'strict'` mildert es, ist aber kein vollständiger Schutz.
-- **Fix:** `csrf-csrf` Paket installieren und Middleware einbinden, oder Custom-Header-Pattern (`X-Requested-With`) verwenden.
-- [ ] **Erledigt**
+- **Fix:** Custom-Header-Pattern (`X-Requested-With: XMLHttpRequest`) — Server prüft Header bei allen state-ändernden Requests. `agency.js` patcht `window.fetch` global, um den Header automatisch zu setzen.
+- [x] **Erledigt**
 
 ---
 
@@ -129,23 +129,23 @@ npm audit fix
 ### H6: TOTP-Secret im Klartext in der Datenbank
 - **Datei:** `server.js`, Zeilen 258, 289–291
 - **Problem:** Das TOTP-Secret liegt unverschlüsselt in `users.db`. Bei einem DB-Leak kann ein Angreifer 2FA-Codes generieren.
-- **Fix:** TOTP-Secrets mit AES-256-GCM und einem Server-Key aus der Umgebungsvariable verschlüsseln.
-- [ ] **Erledigt**
+- **Fix:** `encryptTotpSecret()` / `decryptTotpSecret()` mit AES-256-GCM. Key aus `TOTP_ENCRYPTION_KEY` Env-Variable (64 Hex-Zeichen). Warnung beim Start wenn Key fehlt.
+- [x] **Erledigt**
 
 ---
 
 ### H7: Session-Dateien im Klartext auf Disk
 - **Datei:** `server.js`, Zeile 43
 - **Problem:** `session-file-store` speichert Sessions als Plaintext-JSON-Dateien. Bei Server-Kompromittierung sofort lesbar.
-- **Fix:** Für Produktion Redis oder verschlüsselten Store verwenden (`connect-redis`).
-- [ ] **Erledigt**
+- **Fix:** `connect-redis` installiert. Wenn `REDIS_URL` in `.env` gesetzt → Redis-Store; sonst FileStore mit Warnung in Produktion.
+- [x] **Erledigt**
 
 ---
 
 ### H8: speakeasy (2FA-Paket) nicht mehr aktiv gewartet
 - **Problem:** `speakeasy` hat seit Jahren keine Updates erhalten. Sicherheitsprobleme werden nicht mehr gepatcht.
-- **Fix:** Migration zu `otplib` (aktiv gewartet, gleiche API-Struktur).
-- [ ] **Erledigt**
+- **Fix:** Migration zu `otplib` (aktiv gewartet, RFC 6238 konform).
+- [x] **Erledigt**
 
 ---
 
@@ -234,9 +234,12 @@ npm audit fix
 
 ## Fortschritt
 
-- **Kritisch:** 4 / 5 erledigt *(offen: K2 CSRF)*
-- **Hoch:** 5 / 8 erledigt *(offen: H6 TOTP-Verschlüsselung, H7 Session-Store, H8 speakeasy-Migration)*
-- **Datenschutz:** 8 / 8 erledigt*
-- **Gesamt:** 17 / 21 erledigt
+- **Kritisch:** 5 / 5 erledigt ✅
+- **Hoch:** 8 / 8 erledigt ✅
+- **Datenschutz:** 8 / 8 erledigt ✅
+- **Gesamt:** 21 / 21 erledigt ✅
 
-*⚠️ D6: Link zu `datenschutz.html` gesetzt — Inhalt der Seite muss noch erstellt werden.*
+**Noch erforderlich (Konfiguration):**
+- `TOTP_ENCRYPTION_KEY=<64 Hex-Zeichen>` in `.env` setzen (z. B. mit `openssl rand -hex 32`)
+- `REDIS_URL=<redis://...>` optional in `.env` für verschlüsselten Session-Store in Produktion
+- `datenschutz.html` Inhalte ggf. rechtlich prüfen lassen

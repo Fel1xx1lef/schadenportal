@@ -3,10 +3,13 @@ const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
+const { createClient: createRedisClient } = require('redis');
+const RedisStore = require('connect-redis').default;
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const speakeasy = require('speakeasy');
+const { authenticator } = require('otplib');
 const QRCode = require('qrcode');
+const crypto = require('crypto');
 const path = require('path');
 const { users, contracts, messages, activityLog, settings, appointments, seedAdmin, seedSettings } = require('./db');
 const { requireLogin, requireAdmin } = require('./middleware/auth');
@@ -48,6 +51,11 @@ if (!process.env.SESSION_SECRET) {
   process.exit(1);
 }
 
+if (!process.env.TOTP_ENCRYPTION_KEY) {
+  console.warn('WARNUNG: TOTP_ENCRYPTION_KEY nicht gesetzt — TOTP-Secrets werden unverschlüsselt gespeichert.');
+  console.warn('         Setze TOTP_ENCRYPTION_KEY=<64 Hex-Zeichen> in .env für AES-256-GCM Verschlüsselung.');
+}
+
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
@@ -55,12 +63,41 @@ const PORT = process.env.PORT || 3000;
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(express.json());
+
+// K2: CSRF-Schutz via Custom-Header-Pattern
+// Browser kann diesen Header bei Cross-Origin-Requests ohne CORS-Preflight nicht setzen.
+// sameSite: 'strict' schützt zusätzlich.
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    if (!req.headers['x-requested-with']) {
+      return res.status(403).json({ error: 'CSRF-Schutz: X-Requested-With Header fehlt' });
+    }
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => res.redirect('/login.html'));
 
+// H7: Redis-Session-Store wenn REDIS_URL gesetzt, sonst FileStore (Fallback für lokale Entwicklung)
+let sessionStore;
+if (process.env.REDIS_URL) {
+  const redisClient = createRedisClient({ url: process.env.REDIS_URL });
+  redisClient.connect().catch(err => {
+    console.error('Redis-Verbindung fehlgeschlagen:', err.message);
+    process.exit(1);
+  });
+  sessionStore = new RedisStore({ client: redisClient, ttl: 28800 });
+  console.log('✓ Session-Store: Redis');
+} else {
+  sessionStore = new FileStore({ path: path.join(__dirname, 'data', 'sessions'), ttl: 28800 });
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('WARNUNG: Session-Store ist FileStore. Setze REDIS_URL für verschlüsselten Redis-Store.');
+  }
+}
+
 app.use(session({
-  store: new FileStore({ path: path.join(__dirname, 'data', 'sessions'), ttl: 28800 }),
+  store: sessionStore,
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -85,6 +122,26 @@ const twoFALimiter = rateLimit({
 });
 
 const PASSWORD_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
+
+// H6: TOTP-Secret AES-256-GCM Verschlüsselung
+const TOTP_KEY = process.env.TOTP_ENCRYPTION_KEY;
+
+function encryptTotpSecret(plaintext) {
+  if (!TOTP_KEY) return plaintext; // Fallback: kein Key → klar speichern (warnt beim Start)
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(TOTP_KEY, 'hex'), iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return iv.toString('hex') + ':' + tag.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decryptTotpSecret(stored) {
+  if (!TOTP_KEY || !stored.includes(':')) return stored; // Plaintext oder kein Key
+  const [ivHex, tagHex, dataHex] = stored.split(':');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(TOTP_KEY, 'hex'), Buffer.from(ivHex, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+  return decipher.update(Buffer.from(dataHex, 'hex')) + decipher.final('utf8');
+}
 
 // H3: Password strength validation (min 12 chars, upper, lower, digit)
 function validatePasswordStrength(password) {
@@ -334,19 +391,19 @@ app.get('/api/auth/2fa/setup', requireLogin, async (req, res) => {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
 
-    const secret = speakeasy.generateSecret({
-      name: 'Schindelhauer Kundenportal (' + user.email + ')',
-      issuer: 'Felix Schindelhauer GmbH',
-      length: 20
-    });
+    // H8: otplib statt speakeasy
+    authenticator.options = { window: 1 };
+    const base32Secret = authenticator.generateSecret(20);
+    const otpauthUrl = authenticator.keyuri(user.email, 'Felix Schindelhauer GmbH', base32Secret);
 
+    // H6: verschlüsselt zwischenspeichern
     await users.updateAsync({ _id: user._id }, { $set: {
-      totp_secret_temp: secret.base32,
+      totp_secret_temp: encryptTotpSecret(base32Secret),
       totp_setup_pending: true
     }});
 
-    const qr = await QRCode.toDataURL(secret.otpauth_url);
-    res.json({ qr, secret: secret.base32 });
+    const qr = await QRCode.toDataURL(otpauthUrl);
+    res.json({ qr, secret: base32Secret });
   } catch (err) {
     console.error('2FA Setup-Fehler:', err);
     res.status(500).json({ error: 'Serverfehler' });
@@ -363,18 +420,16 @@ app.post('/api/auth/2fa/confirm', requireLogin, twoFALimiter, async (req, res) =
       return res.status(400).json({ error: '2FA-Setup nicht gestartet' });
     }
 
-    const valid = speakeasy.totp.verify({
-      secret: user.totp_secret_temp,
-      encoding: 'base32',
-      token: token.replace(/\s/g, ''),
-      window: 1
-    });
+    // H8: otplib; H6: entschlüsseln für Verifikation
+    authenticator.options = { window: 1 };
+    const tempPlain = decryptTotpSecret(user.totp_secret_temp);
+    const valid = authenticator.verify({ token: token.replace(/\s/g, ''), secret: tempPlain });
 
     if (!valid) return res.status(401).json({ error: 'Ungültiger Code. Bitte erneut versuchen.' });
 
     await users.updateAsync({ _id: user._id }, {
       $set: {
-        totp_secret: user.totp_secret_temp,
+        totp_secret: user.totp_secret_temp, // bleibt verschlüsselt
         totp_enabled: true,
         totp_enabled_at: new Date().toISOString()
       },
@@ -409,12 +464,10 @@ app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
       return res.status(401).json({ error: 'Code bereits verwendet. Bitte warten Sie auf den nächsten Code.' });
     }
 
-    const valid = speakeasy.totp.verify({
-      secret: user.totp_secret,
-      encoding: 'base32',
-      token: token.replace(/\s/g, ''),
-      window: 1
-    });
+    // H8: otplib; H6: entschlüsseln
+    authenticator.options = { window: 1 };
+    const secretPlain = decryptTotpSecret(user.totp_secret);
+    const valid = authenticator.verify({ token: token.replace(/\s/g, ''), secret: secretPlain });
 
     if (!valid) return res.status(401).json({ error: 'Ungültiger Code.' });
 

@@ -1,3 +1,16 @@
+// K2: CSRF-Schutz — automatisch X-Requested-With Header bei allen state-ändernden Requests setzen
+(function() {
+  const _fetch = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    const method = (opts.method || 'GET').toUpperCase();
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+      opts.headers = Object.assign({ 'X-Requested-With': 'XMLHttpRequest' }, opts.headers || {});
+    }
+    return _fetch(url, opts);
+  };
+})();
+
 (async function () {
   try {
     const s = await fetch('/api/settings').then(r => r.json());
