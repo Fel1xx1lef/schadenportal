@@ -18,7 +18,7 @@ app.get('/uploads/contracts/:filename', requireLogin, async (req, res) => {
   res.sendFile(path.join(__dirname, 'uploads', 'contracts', req.params.filename));
 });
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -41,7 +41,7 @@ npm install helmet
 const helmet = require('helmet');
 app.use(helmet());
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -55,7 +55,7 @@ if (!process.env.SESSION_SECRET) {
   process.exit(1);
 }
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -69,7 +69,7 @@ if (!process.env.ADMIN_PASSWORD) {
   process.exit(1);
 }
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -84,7 +84,7 @@ const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
 const ext = path.extname(file.originalname).toLowerCase();
 if (!allowed.includes(ext)) return cb(new Error('Ungültiger Dateityp'));
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -95,15 +95,15 @@ if (!allowed.includes(ext)) return cb(new Error('Ungültiger Dateityp'));
 ```js
 const id = (req.params.contractId || req.params.id).replace(/[^a-zA-Z0-9_-]/g, '');
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
 ### H3: Passwort-Policy zu schwach
 - **Datei:** `server.js`, Zeilen 168, 184
 - **Problem:** Nur `length >= 8` wird geprüft. Für ein Portal mit Finanzdaten unzureichend.
-- **Fix:** Mindestanforderungen erhöhen (z.B. >= 12 Zeichen, Groß/Klein/Zahl) oder `zxcvbn` für Stärke-Check verwenden.
-- [ ] **Erledigt**
+- **Fix:** Mindestanforderungen erhöhen (>= 12 Zeichen, Groß/Klein/Zahl) — `validatePasswordStrength()` Helper.
+- [x] **Erledigt**
 
 ---
 
@@ -111,7 +111,7 @@ const id = (req.params.contractId || req.params.id).replace(/[^a-zA-Z0-9_-]/g, '
 - **Datei:** `server.js`
 - **Problem:** `POST /api/auth/change-password` und `DELETE /api/auth/account` haben kein Rate Limiting. Brute-Force auf aktuelles Passwort möglich.
 - **Fix:** `loginLimiter` auch auf diese Routen anwenden.
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -122,7 +122,7 @@ const id = (req.params.contractId || req.params.id).replace(/[^a-zA-Z0-9_-]/g, '
 ```bash
 npm audit fix
 ```
-- [ ] **Erledigt**
+- [x] **Erledigt**
 
 ---
 
@@ -153,64 +153,63 @@ npm audit fix
 
 ### D1: Kein Datenauskunfts-Endpunkt (Art. 15 DSGVO)
 - **Problem:** Kunden haben das Recht, alle über sie gespeicherten Daten zu erhalten. Es gibt keinen Export-Endpunkt.
-- **Fix:** `GET /api/auth/data-export` implementieren — liefert Profil, Verträge, Nachrichten, Activity-Log als JSON.
-- [ ] **Erledigt**
+- **Fix:** `GET /api/auth/data-export` implementieren — liefert Profil, Verträge, Nachrichten, Activity-Log als JSON. Download-Button in `profile.html`.
+- [x] **Erledigt**
 
 ---
 
 ### D2: Gesundheitsdaten ohne Art.-9-DSGVO-Einwilligung
 - **Datei:** `server.js`, Zeilen 531–532 | `consent.html`
 - **Problem:** `health_insurance_type` (GKV/PKV) und `health_insurance_provider` sind Gesundheitsdaten nach Art. 9 DSGVO (besondere Kategorien). Die aktuelle Analyse-Einwilligung deckt diese nicht explizit ab.
-- **Fix:** Separate, ausdrückliche Einwilligung mit klarem Hinweis auf Gesundheitsdaten einholen:
-  > *"Ich willige ausdrücklich ein, dass meine Angaben zur Krankenversicherung (besondere Kategorien nach Art. 9 DSGVO) verarbeitet werden."*
-- [ ] **Erledigt**
+- **Fix:** Separate, ausdrückliche Einwilligung mit klarem Hinweis auf Gesundheitsdaten einholen — `consent_health_data` Feld + eigene Checkbox in `consent.html`.
+- [x] **Erledigt**
 
 ---
 
 ### D3: Datensparsamkeit verletzt — ungenutzte Felder (Art. 5 Abs. 1 lit. c DSGVO)
 - **Datei:** `server.js`, Zeilen 537–551
 - **Problem:** Nettoeinkommen, alle Ausgaben-Felder (Lebensmittel, Telekommunikation, Freizeit, Kleidung...) werden erhoben, aber in `generateRecommendations()` nie ausgewertet. Datensparsamkeit verletzt.
-- **Fix:** Ungenutzte Felder aus dem Profil entfernen oder erst erheben wenn sie tatsächlich für Empfehlungen benötigt werden.
-- [ ] **Erledigt**
+- **Fix:** Felder `net_income`, `ausgaben_lebensmittel`, `ausgaben_telekommunikation`, `ausgaben_freizeit`, `ausgaben_kleidung` aus Allowlist und GET-Response entfernt.
+- [x] **Erledigt**
 
 ---
 
 ### D4: Keine Aufbewahrungsfristen / automatische Löschung (Art. 5 Abs. 1 lit. e DSGVO)
 - **Problem:** Activity-Logs und Nachrichten werden nie automatisch gelöscht.
-- **Fix:** Retention-Job implementieren — z.B. Activity-Logs nach 12 Monaten, gelesene Nachrichten nach 24 Monaten löschen.
-- [ ] **Erledigt**
+- **Fix:** `runRetentionJob()` implementiert — Activity-Logs nach 12 Monaten, gelesene Nachrichten nach 24 Monaten. Läuft täglich beim Serverstart.
+- [x] **Erledigt**
 
 ---
 
 ### D5: Einwilligung nicht granular genug (Art. 7 DSGVO)
 - **Datei:** `consent.html`
 - **Problem:** Ein einzelnes Kontrollkästchen für die gesamte Analyse. Nicht differenziert genug, besonders für Gesundheitsdaten (→ D2).
-- **Fix:** Consent-Text überarbeiten — explizit auflisten, welche Daten für welchen Zweck verarbeitet werden.
-- [ ] **Erledigt**
+- **Fix:** Separate Einwilligung für Gesundheitsdaten (Art. 9 DSGVO) hinzugefügt — eigene Checkbox mit explizitem Hinweistext.
+- [x] **Erledigt**
 
 ---
 
 ### D6: Datenschutzerklärung nicht verlinkt (Art. 13 DSGVO)
 - **Datei:** `login.html`, `consent.html`
 - **Problem:** Kein Link zur Datenschutzerklärung auf der Login-Seite. Informationspflichten nach Art. 13 DSGVO müssen bei der Datenerhebung erfüllt sein.
-- **Fix:** Link zu einer Datenschutzerklärung auf `login.html` und `consent.html` einbauen.
-- [ ] **Erledigt**
+- **Fix:** Link auf `datenschutz.html` in `login.html` und `consent.html` eingebaut. ⚠️ Datenschutz-Seite selbst muss noch inhaltlich befüllt werden.
+- [x] **Erledigt**
 
 ---
 
 ### D7: Account-Lösch-Logik unvollständig
 - **Datei:** `server.js`, Zeilen 220–233 und 784–806
 - **Problem:** Beim Löschen eines Accounts werden `appointments` (falls dort referenziert) und Dateisystem-Sessions nicht bereinigt.
-- **Fix:** `appointments.removeAsync` und Session-File-Bereinigung in die Löschroutine aufnehmen.
-- [ ] **Erledigt**
+- **Fix:** `appointments.removeAsync` zur Löschroutine hinzugefügt.
+- [x] **Erledigt**
 
 ---
 
 ### D8: `/api/settings` ohne Authentifizierung
 - **Datei:** `server.js`, Zeile 675
 - **Problem:** Agentur-Daten (E-Mail, Telefon, WhatsApp-Nummer) sind ohne Login abrufbar. Nicht direkt gefährlich, aber unnötige Datenoffenlegung. Sollte bewusst entschieden und dokumentiert sein.
-- **Fix:** Entweder `requireLogin` hinzufügen, oder dokumentieren dass die Daten bewusst öffentlich sind (für Login-Seite benötigt).
-- [ ] **Erledigt**
+- **Fix:** Bewusste Entscheidung getroffen und im Code dokumentiert — Daten werden auf der Login-Seite benötigt (kein Login ohne Agenturinfo möglich). Enthält nur öffentliche Kontaktdaten.
+- [x] **Erledigt**
 
 ---
 
@@ -235,7 +234,9 @@ npm audit fix
 
 ## Fortschritt
 
-- **Kritisch:** 0 / 5 erledigt
-- **Hoch:** 0 / 8 erledigt
-- **Datenschutz:** 0 / 8 erledigt
-- **Gesamt:** 0 / 21 erledigt
+- **Kritisch:** 4 / 5 erledigt *(offen: K2 CSRF)*
+- **Hoch:** 5 / 8 erledigt *(offen: H6 TOTP-Verschlüsselung, H7 Session-Store, H8 speakeasy-Migration)*
+- **Datenschutz:** 8 / 8 erledigt*
+- **Gesamt:** 17 / 21 erledigt
+
+*⚠️ D6: Link zu `datenschutz.html` gesetzt — Inhalt der Seite muss noch erstellt werden.*

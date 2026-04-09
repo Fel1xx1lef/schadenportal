@@ -319,6 +319,17 @@
         </div>
       </form>
 
+      <!-- D1: Datenauskunft (Art. 15 DSGVO) -->
+      <div class="card animate-in" style="margin-top:24px;">
+        <div class="card-title"><span class="icon">📥</span>Meine Daten exportieren</div>
+        <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">
+          Du hast das Recht, alle über dich gespeicherten Daten zu erhalten (Art. 15 DSGVO). Der Export enthält dein Profil, Verträge, Nachrichten, Termine und Aktivitätsprotokolle.
+        </p>
+        <a href="/api/auth/data-export" class="btn btn-secondary" download="meine-daten.json">
+          Daten als JSON herunterladen
+        </a>
+      </div>
+
       <!-- Konto löschen -->
       <div class="card animate-in" style="margin-top:24px;border-color:#fca5a5;">
         <div class="card-title" style="color:var(--danger)"><span class="icon">🗑️</span>Konto löschen</div>
@@ -348,7 +359,7 @@
           </div>
           <div class="form-group" style="max-width:360px;">
             <label>Neues Passwort</label>
-            <input type="password" id="pwNew" class="form-control" placeholder="Mindestens 8 Zeichen" required minlength="8" autocomplete="new-password">
+            <input type="password" id="pwNew" class="form-control" placeholder="Mindestens 12 Zeichen" required minlength="12" autocomplete="new-password">
           </div>
           <div class="form-group" style="max-width:360px;">
             <label>Neues Passwort bestätigen</label>

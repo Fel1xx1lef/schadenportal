@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const bcrypt = require('bcryptjs');
@@ -12,6 +13,10 @@ const { requireLogin, requireAdmin } = require('./middleware/auth');
 
 const fs     = require('fs');
 const multer = require('multer');
+
+const ALLOWED_UPLOAD_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
+const ALLOWED_UPLOAD_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+
 const uploadScan = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
@@ -20,29 +25,43 @@ const uploadScan = multer({
       cb(null, dir);
     },
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      const id  = req.params.contractId || req.params.id;
+      const ext = path.extname(file.originalname).toLowerCase();
+      // H2: sanitize id to prevent path traversal
+      const id  = (req.params.contractId || req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
       cb(null, `${id}-${Date.now()}${ext}`);
     }
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => cb(null, ['image/jpeg','image/png','image/webp'].includes(file.mimetype))
+  // H1: check both MIME type and file extension
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_UPLOAD_MIMES.includes(file.mimetype) && ALLOWED_UPLOAD_EXTS.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Ungültiger Dateityp. Erlaubt: JPG, PNG, WEBP'));
+    }
+  }
 });
+
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET nicht in .env gesetzt!');
+  process.exit(1);
+}
 
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+app.use(helmet());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => res.redirect('/login.html'));
 
 app.use(session({
   store: new FileStore({ path: path.join(__dirname, 'data', 'sessions'), ttl: 28800 }),
-  secret: process.env.SESSION_SECRET || 'bitte-in-.env-aendern-' + Math.random(),
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -67,6 +86,15 @@ const twoFALimiter = rateLimit({
 
 const PASSWORD_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
 
+// H3: Password strength validation (min 12 chars, upper, lower, digit)
+function validatePasswordStrength(password) {
+  if (password.length < 12) return 'Passwort muss mindestens 12 Zeichen haben';
+  if (!/[A-Z]/.test(password)) return 'Passwort muss mindestens einen Großbuchstaben enthalten';
+  if (!/[a-z]/.test(password)) return 'Passwort muss mindestens einen Kleinbuchstaben enthalten';
+  if (!/[0-9]/.test(password)) return 'Passwort muss mindestens eine Zahl enthalten';
+  return null;
+}
+
 function buildPasswordFlags(user) {
   const mustChange = !!user.must_change_password;
   const ninetyDaysAgo = new Date(Date.now() - PASSWORD_EXPIRY_MS);
@@ -77,6 +105,16 @@ function buildPasswordFlags(user) {
     password_expiry_warning: expiryWarning ? true : undefined
   };
 }
+
+// ── Authenticated File Serving (K1: no public upload access) ─────────────────
+app.get('/uploads/contracts/:filename', requireLogin, async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const contract = await contracts.findOneAsync({ scan_image: filename, user_id: req.session.userId });
+  if (!contract && req.session.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Kein Zugriff' });
+  }
+  res.sendFile(path.join(__dirname, 'uploads', 'contracts', filename));
+});
 
 // ── Auth Routes ───────────────────────────────────────────────────────────────
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -137,6 +175,7 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
       phone: user.phone || '',
       consent_given: !!(user.terms_accepted_at || user.consent_given),
       consent_analysis: !!user.consent_analysis,
+      consent_health_data: !!user.consent_health_data,
       totp_enabled: !!user.totp_enabled,
       requires_password_change,
       password_expiry_warning
@@ -149,12 +188,15 @@ app.get('/api/auth/me', requireLogin, async (req, res) => {
 // Einwilligung – nur Analyse (Portalnutzung basiert auf Nutzungsverhältnis, kein Opt-in nötig)
 app.post('/api/auth/consent', requireLogin, async (req, res) => {
   try {
-    const { consent_analysis } = req.body;
+    const { consent_analysis, consent_health_data } = req.body;
     await users.updateAsync({ _id: req.session.userId }, { $set: {
       terms_accepted_at: new Date().toISOString(),
       consent_given: true,  // Kompatibilität mit bestehendem Login-Check
       consent_analysis: !!consent_analysis,
-      consent_analysis_at: new Date().toISOString()
+      consent_analysis_at: new Date().toISOString(),
+      // D2: Separate Einwilligung für Gesundheitsdaten (Art. 9 DSGVO)
+      consent_health_data: !!consent_health_data,
+      consent_health_data_at: new Date().toISOString()
     }});
     res.json({ ok: true });
   } catch (err) {
@@ -166,11 +208,17 @@ app.post('/api/auth/consent', requireLogin, async (req, res) => {
 // Analyse-Einwilligung widerrufbar
 app.put('/api/auth/consent', requireLogin, async (req, res) => {
   try {
-    const { consent_analysis } = req.body;
-    await users.updateAsync({ _id: req.session.userId }, { $set: {
+    const { consent_analysis, consent_health_data } = req.body;
+    const update = {
       consent_analysis: !!consent_analysis,
       consent_analysis_at: new Date().toISOString()
-    }});
+    };
+    if (consent_health_data !== undefined) {
+      // D2: Gesundheitsdaten-Einwilligung ebenfalls widerrufbar
+      update.consent_health_data = !!consent_health_data;
+      update.consent_health_data_at = new Date().toISOString();
+    }
+    await users.updateAsync({ _id: req.session.userId }, { $set: update });
     res.json({ ok: true });
   } catch (err) {
     console.error('Consent-Update-Fehler:', err);
@@ -178,11 +226,12 @@ app.put('/api/auth/consent', requireLogin, async (req, res) => {
   }
 });
 
-app.post('/api/auth/change-password', requireLogin, async (req, res) => {
+app.post('/api/auth/change-password', requireLogin, loginLimiter, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) return res.status(400).json({ error: 'Alle Felder erforderlich' });
-    if (new_password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
+    const pwError = validatePasswordStrength(new_password);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
@@ -204,7 +253,7 @@ app.post('/api/auth/change-password', requireLogin, async (req, res) => {
 });
 
 // Account-Löschung (nur für Kunden, mit Passwort-Bestätigung)
-app.delete('/api/auth/account', requireLogin, async (req, res) => {
+app.delete('/api/auth/account', requireLogin, loginLimiter, async (req, res) => {
   try {
     const user = await users.findOneAsync({ _id: req.session.userId });
     if (!user) return res.status(401).json({ error: 'Session ungültig' });
@@ -228,11 +277,48 @@ app.delete('/api/auth/account', requireLogin, async (req, res) => {
     await contracts.removeAsync({ user_id: userId }, { multi: true });
     await messages.removeAsync({ user_id: userId }, { multi: true });
     await activityLog.removeAsync({ user_id: userId }, { multi: true });
+    await appointments.removeAsync({ user_id: userId }, { multi: true });
     await users.removeAsync({ _id: userId });
 
     req.session.destroy(() => res.json({ ok: true }));
   } catch (err) {
     console.error('Account-Löschung-Fehler:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// ── D1: Datenauskunft (Art. 15 DSGVO) ────────────────────────────────────────
+app.get('/api/auth/data-export', requireLogin, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const [user, userContracts, userMessages, userLog, userAppointments] = await Promise.all([
+      users.findOneAsync({ _id: userId }),
+      contracts.findAsync({ user_id: userId }),
+      messages.findAsync({ user_id: userId }),
+      activityLog.findAsync({ user_id: userId }),
+      appointments.findAsync({ user_id: userId })
+    ]);
+    if (!user) return res.status(401).json({ error: 'Session ungültig' });
+
+    const exportData = {
+      profile: {
+        email: user.email,
+        full_name: user.full_name,
+        phone: user.phone || '',
+        created_at: user.created_at,
+        consent_analysis: !!user.consent_analysis,
+        consent_given_at: user.consent_given_at || null
+      },
+      contracts: userContracts.map(c => ({ ...c, _id: undefined, user_id: undefined })),
+      messages: userMessages.map(m => ({ ...m, _id: undefined, user_id: undefined })),
+      activity_log: userLog.map(e => ({ ...e, _id: undefined, user_id: undefined })),
+      appointments: userAppointments.map(a => ({ ...a, _id: undefined, user_id: undefined })),
+      exported_at: new Date().toISOString()
+    };
+
+    res.setHeader('Content-Disposition', 'attachment; filename="meine-daten.json"');
+    res.json(exportData);
+  } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
@@ -530,7 +616,6 @@ app.get('/api/profile', requireLogin, async (req, res) => {
       health_insurance_type: user.health_insurance_type || '',
       health_insurance_provider: user.health_insurance_provider || '',
       gross_income: user.gross_income || '',
-      net_income: user.net_income || '',
       beruf: user.beruf || '',
       berufsgruppe: user.berufsgruppe || '',
       wohneigentum: user.wohneigentum || '',
@@ -544,11 +629,7 @@ app.get('/api/profile', requireLogin, async (req, res) => {
       andere_einkuenfte:          user.andere_einkuenfte || '',
       ausgaben_miete:             user.ausgaben_miete || '',
       ausgaben_nebenkosten:       user.ausgaben_nebenkosten || '',
-      ausgaben_lebensmittel:      user.ausgaben_lebensmittel || '',
-      ausgaben_mobilitaet:        user.ausgaben_mobilitaet || '',
-      ausgaben_telekommunikation: user.ausgaben_telekommunikation || '',
-      ausgaben_freizeit:          user.ausgaben_freizeit || '',
-      ausgaben_kleidung:          user.ausgaben_kleidung || ''
+      ausgaben_mobilitaet:        user.ausgaben_mobilitaet || ''
     });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -557,21 +638,18 @@ app.get('/api/profile', requireLogin, async (req, res) => {
 
 app.put('/api/profile', requireLogin, async (req, res) => {
   try {
+    // D3: Nur Felder die tatsächlich für Empfehlungen verwendet werden (Datensparsamkeit Art. 5 DSGVO)
     const NUMERIC_FIELDS = new Set([
-      'gross_income', 'net_income',
+      'gross_income',
       'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
-      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_lebensmittel',
-      'ausgaben_mobilitaet', 'ausgaben_telekommunikation',
-      'ausgaben_freizeit', 'ausgaben_kleidung'
+      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet'
     ]);
     const allowed = ['full_name', 'phone', 'mobile', 'birth_date', 'marital_status',
       'spouse_name', 'health_insurance_type', 'health_insurance_provider',
-      'gross_income', 'net_income', 'beruf', 'berufsgruppe', 'wohneigentum',
+      'gross_income', 'beruf', 'berufsgruppe', 'wohneigentum',
       'rente_aktiv', 'rente', 'minijob_aktiv', 'minijob',
       'kindergeld_aktiv', 'kindergeld', 'andere_einkuenfte_aktiv', 'andere_einkuenfte',
-      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_lebensmittel',
-      'ausgaben_mobilitaet', 'ausgaben_telekommunikation',
-      'ausgaben_freizeit', 'ausgaben_kleidung'];
+      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet'];
     const update = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
@@ -672,6 +750,8 @@ async function logActivity(userId, type, _description) {
 }
 
 // ── Settings Routes ───────────────────────────────────────────────────────────
+// D8: Bewusst ohne requireLogin — Agentur-Daten werden auf der Login-Seite angezeigt (kein Login möglich ohne sie).
+// Enthält nur öffentliche Kontaktdaten (Name, Telefon, E-Mail, Öffnungszeiten).
 app.get('/api/settings', async (req, res) => {
   try {
     const s = await settings.findOneAsync({});
@@ -710,7 +790,8 @@ app.post('/api/admin/admins', requireAdmin, async (req, res) => {
   try {
     const { email, full_name, password } = req.body;
     if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
-    if (password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
+    const pwError = validatePasswordStrength(password);
+    if (pwError) return res.status(400).json({ error: pwError });
     const hash = await bcrypt.hash(password, 12);
     const admin = await users.insertAsync({
       email: email.toLowerCase().trim(),
@@ -762,7 +843,8 @@ app.post('/api/admin/customers', requireAdmin, async (req, res) => {
   try {
     const { email, full_name, password } = req.body;
     if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
-    if (password.length < 8) return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
+    const pwError = validatePasswordStrength(password);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const hash = await bcrypt.hash(password, 12);
     const user = await users.insertAsync({
@@ -897,8 +979,38 @@ async function migratePasswordFields() {
   }
 }
 
+// ── D4: Daten-Retention (Art. 5 Abs. 1 lit. e DSGVO) ──────────────────────────
+async function runRetentionJob() {
+  const now = Date.now();
+  const twelveMonthsAgo = new Date(now - 365 * 24 * 60 * 60 * 1000).toISOString();
+  const twentyFourMonthsAgo = new Date(now - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    const deletedLogs = await activityLog.removeAsync(
+      { created_at: { $lt: twelveMonthsAgo } },
+      { multi: true }
+    );
+    const deletedMessages = await messages.removeAsync(
+      { read: true, created_at: { $lt: twentyFourMonthsAgo } },
+      { multi: true }
+    );
+    if (deletedLogs > 0 || deletedMessages > 0) {
+      console.log(`✓ Retention: ${deletedLogs} Activity-Logs, ${deletedMessages} Nachrichten gelöscht`);
+    }
+  } catch (err) {
+    console.error('Retention-Job Fehler:', err.message);
+  }
+}
+
+// Täglich um 03:00 Uhr (24h in ms)
+const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 Promise.all([seedAdmin(), seedSettings(), migratePasswordFields()]).then(() => {
+  // D4: Retention-Job beim Start und dann täglich
+  runRetentionJob();
+  setInterval(runRetentionJob, RETENTION_INTERVAL_MS);
+
   const server = app.listen(PORT, () => {
     console.log(`\nKundenportal läuft auf http://localhost:${PORT}`);
     console.log('Zum Beenden: Strg+C\n');

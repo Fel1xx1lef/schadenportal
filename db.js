@@ -22,7 +22,11 @@ async function seedAdmin() {
   if (existing) return;
 
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@schindelhauer.de';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin1234!';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    console.error('FATAL: ADMIN_PASSWORD nicht in .env gesetzt! Server wird beendet.');
+    process.exit(1);
+  }
   const hash = await bcrypt.hash(adminPassword, 12);
 
   await users.insertAsync({
