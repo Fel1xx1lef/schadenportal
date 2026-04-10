@@ -543,7 +543,8 @@ select.form-control { cursor: pointer; }
   padding: 12px 14px;
   border: 1px solid rgba(255,255,255,0.08);
 }
-.cost-item label { font-size: 11px; opacity: 0.65; display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.cost-item label { font-size: 11px; opacity: 0.65; display: block; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; pointer-events: none; }
+.cost-item value { pointer-events: none; }
 .cost-item value {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 20px;

@@ -56,6 +56,10 @@ if (!process.env.SESSION_SECRET) {
 }
 
 if (!process.env.TOTP_ENCRYPTION_KEY) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: TOTP_ENCRYPTION_KEY nicht in .env gesetzt! Server wird beendet.');
+    process.exit(1);
+  }
   console.warn('WARNUNG: TOTP_ENCRYPTION_KEY nicht gesetzt — TOTP-Secrets werden unverschlüsselt gespeichert.');
   console.warn('         Setze TOTP_ENCRYPTION_KEY=<64 Hex-Zeichen> in .env für AES-256-GCM Verschlüsselung.');
 }
@@ -65,7 +69,20 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'"],
+      styleSrc:   ["'self'", "'unsafe-inline'"], // inline <style>-Blöcke in einigen Seiten
+      imgSrc:     ["'self'", "data:"],            // QR-Code als data:-URI
+      connectSrc: ["'self'"],
+      fontSrc:    ["'self'"],
+      objectSrc:  ["'none'"],
+      frameSrc:   ["'none'"],
+    },
+  },
+}));
 app.use(express.json({ limit: '50kb' }));
 
 // K2: CSRF-Schutz via Custom-Header-Pattern
@@ -103,6 +120,7 @@ if (process.env.REDIS_URL) {
 app.use(session({
   store: sessionStore,
   secret: process.env.SESSION_SECRET,
+  name: 'sid',  // Kein 'connect.sid' — verrät nicht den Tech-Stack
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -480,7 +498,7 @@ app.get('/api/auth/data-export', requireLogin, async (req, res) => {
       txt += '  Keine Einträge vorhanden.\n';
     } else {
       exportData.activity_log.forEach(entry => {
-        txt += `  ${fmtDate(entry.created_at)}  ${fmt(entry.action)}\n`;
+        txt += `  ${fmtDate(entry.created_at)}  ${fmt(entry.type)}\n`;
       });
     }
 
@@ -670,7 +688,7 @@ app.post('/api/contracts', requireLogin, async (req, res) => {
       premium_cycle,
       start_date: start_date || '',
       end_date: end_date || '',
-      details: details && typeof details === 'object' ? details : {},
+      details: (details && typeof details === 'object' && JSON.stringify(details).length <= 5000) ? details : {},
       is_own_insurer: category === 'insurance' ? !!is_own_insurer : false,
       cancellation_deadline: cancellation_deadline || '',
       renewal_date: renewal_date || '',
@@ -706,7 +724,7 @@ app.put('/api/contracts/:id', requireLogin, async (req, res) => {
         premium_cycle,
         start_date: start_date || '',
         end_date: end_date || '',
-        details: details && typeof details === 'object' ? details : {},
+        details: (details && typeof details === 'object' && JSON.stringify(details).length <= 5000) ? details : {},
         is_own_insurer: category === 'insurance' ? !!is_own_insurer : false,
         cancellation_deadline: cancellation_deadline || '',
         renewal_date: renewal_date || '',
@@ -757,18 +775,23 @@ app.post('/api/contracts/:id/scan', requireLogin,
 );
 
 // ── Contact Routes ────────────────────────────────────────────────────────────
+const VALID_REQUEST_TYPES = ['message', 'callback', 'offer', 'complaint', 'other'];
+
 app.post('/api/contact', requireLogin, contactLimiter, async (req, res) => {
   try {
     const { subject, message, request_type, callback_time } = req.body;
     if (!subject || !message) return res.status(400).json({ error: 'Betreff und Nachricht erforderlich' });
     if (subject.length > 200) return res.status(400).json({ error: 'Betreff zu lang (max. 200 Zeichen)' });
     if (message.length > 5000) return res.status(400).json({ error: 'Nachricht zu lang (max. 5000 Zeichen)' });
+    if (callback_time && callback_time.length > 200) return res.status(400).json({ error: 'Rückrufzeit zu lang (max. 200 Zeichen)' });
+
+    const safeRequestType = VALID_REQUEST_TYPES.includes(request_type) ? request_type : 'message';
 
     await messages.insertAsync({
       user_id: req.session.userId,
       subject: subject.trim(),
       message: message.trim(),
-      request_type: request_type || 'message',
+      request_type: safeRequestType,
       callback_time: callback_time ? callback_time.trim() : '',
       status: 'new',
       created_at: new Date().toISOString()
@@ -1129,6 +1152,8 @@ app.post('/api/admin/appointments', requireAdmin, async (req, res) => {
   try {
     const { title, date, time, notes } = req.body;
     if (!title || !date) return res.status(400).json({ error: 'Titel und Datum erforderlich' });
+    if (title.length > 200) return res.status(400).json({ error: 'Titel zu lang (max. 200 Zeichen)' });
+    if (notes && notes.length > 2000) return res.status(400).json({ error: 'Notizen zu lang (max. 2000 Zeichen)' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Ungültiges Datumsformat (YYYY-MM-DD)' });
     if (time && !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Ungültiges Zeitformat (HH:MM)' });
     const doc = await appointments.insertAsync({
