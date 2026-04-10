@@ -134,7 +134,12 @@ app.use(session({
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: { error: 'Zu viele Loginversuche. Bitte 15 Minuten warten.' }
+  message: { error: 'Zu viele Loginversuche. Bitte 15 Minuten warten.' },
+  keyGenerator: (req) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const email = (req.body && req.body.email) ? req.body.email.toLowerCase().trim() : '';
+    return `${ip}:${email}`;
+  }
 });
 
 const twoFALimiter = rateLimit({
