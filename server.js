@@ -837,7 +837,8 @@ app.get('/api/profile', requireLogin, async (req, res) => {
       andere_einkuenfte:          user.andere_einkuenfte || '',
       ausgaben_miete:             user.ausgaben_miete || '',
       ausgaben_nebenkosten:       user.ausgaben_nebenkosten || '',
-      ausgaben_mobilitaet:        user.ausgaben_mobilitaet || ''
+      ausgaben_mobilitaet:        user.ausgaben_mobilitaet || '',
+      haushalt_wizard_done:       user.haushalt_wizard_done || false
     });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -860,7 +861,8 @@ app.put('/api/profile', requireLogin, async (req, res) => {
       'gross_income', 'beruf', 'berufsgruppe', 'wohneigentum',
       'rente_aktiv', 'rente', 'minijob_aktiv', 'minijob',
       'kindergeld_aktiv', 'kindergeld', 'andere_einkuenfte_aktiv', 'andere_einkuenfte',
-      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet'];
+      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet',
+      'haushalt_wizard_done'];
     const update = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
