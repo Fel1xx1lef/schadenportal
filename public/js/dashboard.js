@@ -50,6 +50,12 @@ async function init() {
     fetch('/api/profile').then(r => r.json()).catch(() => ({}))
   ]);
 
+  // Wizard-Redirect: neuer Nutzer ohne abgeschlossenen Wizard
+  if (!profile.haushalt_wizard_done) {
+    window.location.href = 'haushalt-wizard.html';
+    return;
+  }
+
   // Kostenberechnung
   let insMonthly = 0, subMonthly = 0, othMonthly = 0;
   contracts.forEach(c => {
