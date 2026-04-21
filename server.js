@@ -677,7 +677,7 @@ app.post('/api/contracts', requireLogin, async (req, res) => {
   try {
     const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
             cancellation_deadline, renewal_date, is_own_insurer } = req.body;
-    if (!category || !name || !premium_amount || !premium_cycle) {
+    if (!category || !name || premium_amount === undefined || premium_amount === null || premium_amount === '' || !premium_cycle) {
       return res.status(400).json({ error: 'Pflichtfelder fehlen' });
     }
     if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: 'Ungültige Kategorie' });

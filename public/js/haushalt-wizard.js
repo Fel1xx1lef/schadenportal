@@ -1,5 +1,5 @@
 let currentStep = 1;
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 // Hilfsfunktionen
 const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
@@ -64,7 +64,47 @@ function getStepData(step) {
   }
 }
 
+// Gibt die IDs der angehakten Checkboxen in einem Grid zurück
+function getCheckedContracts(gridId) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return [];
+  const result = [];
+  grid.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+    result.push({ name: cb.value, category: cb.dataset.cat });
+  });
+  return result;
+}
+
+// Verträge anlegen (nur wenn noch nicht vorhanden)
+async function saveContracts(gridId, existingNames) {
+  const items = getCheckedContracts(gridId);
+  for (const item of items) {
+    if (existingNames.has(item.name)) continue;
+    await fetch('/api/contracts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: item.category,
+        name: item.name,
+        premium_amount: 0,
+        premium_cycle: 'monthly'
+      })
+    });
+  }
+}
+
 async function saveCurrentStep() {
+  // Schritt 6 & 7: Verträge anlegen
+  if (currentStep === 6 || currentStep === 7) {
+    try {
+      const existing = await fetch('/api/contracts').then(r => r.ok ? r.json() : []).catch(() => []);
+      const existingNames = new Set((existing || []).map(c => c.name));
+      const gridId = currentStep === 6 ? 'versicherungenGrid' : 'abosGrid';
+      await saveContracts(gridId, existingNames);
+    } catch (_) {}
+    return true;
+  }
+
   const data = getStepData(currentStep);
   if (!data) return true;
   const res = await fetch('/api/profile', {
@@ -76,7 +116,7 @@ async function saveCurrentStep() {
 }
 
 function getBtnForStep(step) {
-  const ids = ['nextBtn', 'nextBtn2', 'nextBtn3', 'nextBtn4', 'nextBtn5'];
+  const ids = ['nextBtn', 'nextBtn2', 'nextBtn3', 'nextBtn4', 'nextBtn5', 'nextBtn6', 'nextBtn7'];
   return document.getElementById(ids[step - 1]) || null;
 }
 
@@ -138,6 +178,17 @@ async function loadProfile() {
   } catch (_) {}
 }
 
+// Bereits vorhandene Verträge als Checkboxen vormarkieren
+async function preCheckContracts() {
+  try {
+    const contracts = await fetch('/api/contracts').then(r => r.ok ? r.json() : []).catch(() => []);
+    const names = new Set((contracts || []).map(c => c.name));
+    document.querySelectorAll('#versicherungenGrid input[type=checkbox], #abosGrid input[type=checkbox]').forEach(cb => {
+      if (names.has(cb.value)) cb.checked = true;
+    });
+  } catch (_) {}
+}
+
 // Init – IIFE-Muster wie alle anderen Portal-Seiten
 (async function () {
   const me = await fetch('/api/auth/me').then(r => r.ok ? r.json() : null).catch(() => null);
@@ -156,6 +207,7 @@ async function loadProfile() {
   document.getElementById('nextBtn4').addEventListener('click', wizardNext);
   document.getElementById('nextBtn5').addEventListener('click', wizardNext);
   document.getElementById('nextBtn6').addEventListener('click', wizardNext);
+  document.getElementById('nextBtn7').addEventListener('click', wizardNext);
   document.getElementById('finishBtn').addEventListener('click', wizardFinish);
 
   document.querySelectorAll('.wizard-back').forEach(btn => {
@@ -179,4 +231,5 @@ async function loadProfile() {
   });
 
   await loadProfile();
+  await preCheckContracts();
 })();
