@@ -23,6 +23,22 @@ function updateToggle(key) {
 
 // ── Versicherungsliste dynamisch rendern ──────────────────────────────────────
 
+const ABONNEMENTS = [
+  { value: 'Stromvertrag',          label: '⚡ Strom',              cat: 'subscription' },
+  { value: 'Gasvertrag',            label: '🔥 Gas / Heizung',      cat: 'subscription' },
+  { value: 'Internetvertrag',       label: '🌐 Internet',           cat: 'subscription' },
+  { value: 'Mobilfunkvertrag',      label: '📱 Mobilfunk',          cat: 'subscription' },
+  { value: 'GEZ / Rundfunkbeitrag', label: '📺 Rundfunkbeitrag',    cat: 'subscription' },
+  { value: 'Netflix',               label: '🎬 Netflix',            cat: 'subscription' },
+  { value: 'Spotify',               label: '🎵 Spotify',            cat: 'subscription' },
+  { value: 'Amazon Prime',          label: '📦 Amazon Prime',       cat: 'subscription' },
+  { value: 'Disney+',               label: '🎠 Disney+',            cat: 'subscription' },
+  { value: 'YouTube Premium',       label: '▶️ YouTube Premium',    cat: 'subscription' },
+  { value: 'Apple One',             label: '🍎 Apple One',          cat: 'subscription' },
+  { value: 'DAZN',                  label: '⚽ DAZN',               cat: 'subscription' },
+  { value: '',                      label: '➕ Sonstiges',          cat: 'subscription', custom: true },
+];
+
 const VERSICHERUNGEN = [
   { value: 'Privathaftpflicht',                    label: '🛡️ Privathaftpflicht' },
   { value: 'Kfz-Versicherung',                     label: '🚗 Kfz-Versicherung' },
@@ -60,18 +76,17 @@ function detailFields() {
     </div>`;
 }
 
-function renderInsuranceList() {
-  const container = document.getElementById('versicherungenList');
-  container.innerHTML = VERSICHERUNGEN.map(ins => {
+function buildItemsHtml(items) {
+  return items.map(ins => {
     const nameField = ins.custom
       ? `<div style="margin-bottom:8px;">
            <label style="font-size:12px;margin-bottom:2px;display:block;">Bezeichnung <span style="color:var(--danger)">*</span></label>
-           <input type="text" class="form-control vc-name-custom" placeholder="z. B. Tierkrankenversicherung">
+           <input type="text" class="form-control vc-name-custom" placeholder="z. B. Fitnessstudio">
          </div>`
       : '';
     return `<div class="wizard-ins-item">
       <label class="wizard-ins-header">
-        <input type="checkbox" value="${ins.value}" data-cat="insurance">
+        <input type="checkbox" value="${ins.value}" data-cat="${ins.cat || 'insurance'}">
         <span>${ins.label}</span>
       </label>
       <div class="wizard-ins-detail">
@@ -80,14 +95,27 @@ function renderInsuranceList() {
       </div>
     </div>`;
   }).join('');
+}
 
-  // Toggle: Checkbox → Detail-Bereich ein-/ausblenden
+function wireToggle(container) {
   container.querySelectorAll('.wizard-ins-header input[type=checkbox]').forEach(cb => {
     cb.addEventListener('change', () => {
-      const detail = cb.closest('.wizard-ins-item').querySelector('.wizard-ins-detail');
-      detail.classList.toggle('open', cb.checked);
+      cb.closest('.wizard-ins-item').querySelector('.wizard-ins-detail')
+        .classList.toggle('open', cb.checked);
     });
   });
+}
+
+function renderAboList() {
+  const container = document.getElementById('abosList');
+  container.innerHTML = buildItemsHtml(ABONNEMENTS);
+  wireToggle(container);
+}
+
+function renderInsuranceList() {
+  const container = document.getElementById('versicherungenList');
+  container.innerHTML = buildItemsHtml(VERSICHERUNGEN);
+  wireToggle(container);
 }
 
 // ── Schrittsteuerung ──────────────────────────────────────────────────────────
@@ -190,20 +218,48 @@ async function saveInsurances() {
 
 async function saveAbos() {
   const existing = await fetch('/api/contracts').then(r => r.ok ? r.json() : []).catch(() => []);
-  const existingNames = new Set((existing || []).map(c => c.name));
-  const items = document.querySelectorAll('#abosGrid input[type=checkbox]:checked');
-  for (const cb of items) {
-    if (existingNames.has(cb.value)) continue;
-    await fetch('/api/contracts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        category: cb.dataset.cat,
-        name: cb.value,
-        premium_amount: 0,
-        premium_cycle: 'monthly'
-      })
-    });
+  const byName = {};
+  (existing || []).forEach(c => { byName[c.name] = c; });
+
+  const items = document.querySelectorAll('#abosList .wizard-ins-item');
+  for (const item of items) {
+    const cb = item.querySelector('input[type=checkbox]');
+    if (!cb.checked) continue;
+
+    let name = cb.value;
+    if (!name) {
+      const customInput = item.querySelector('.vc-name-custom');
+      name = customInput ? customInput.value.trim() : '';
+    }
+    if (!name) continue;
+
+    const provider = (item.querySelector('.vc-provider')?.value || '').trim();
+    const amountVal = item.querySelector('.vc-amount')?.value;
+    const premium_amount = amountVal !== '' && amountVal !== undefined ? parseFloat(amountVal) || 0 : 0;
+    const premium_cycle = item.querySelector('.vc-cycle')?.value || 'monthly';
+    const category = cb.dataset.cat || 'subscription';
+
+    if (byName[name]) {
+      const c = byName[name];
+      if (c.added_by_role !== 'admin') {
+        await fetch('/api/contracts/' + c._id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category, name, provider, premium_amount, premium_cycle,
+            description: c.description || '',
+            start_date: c.start_date || '',
+            end_date: c.end_date || ''
+          })
+        });
+      }
+    } else {
+      await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, name, provider, premium_amount, premium_cycle })
+      });
+    }
   }
 }
 
@@ -303,10 +359,21 @@ async function preCheckContracts() {
       if (cycEl)  cycEl.value  = c.premium_cycle || 'monthly';
     });
 
-    // Abonnements: nur Checkbox markieren
-    const aboNames = new Set(Object.keys(byName));
-    document.querySelectorAll('#abosGrid input[type=checkbox]').forEach(cb => {
-      if (aboNames.has(cb.value)) cb.checked = true;
+    // Abonnements: Checkbox + Detail-Felder vorausfüllen
+    document.querySelectorAll('#abosList .wizard-ins-item').forEach(item => {
+      const cb = item.querySelector('input[type=checkbox]');
+      if (!cb.value) return; // Sonstiges überspringen
+      const c = byName[cb.value];
+      if (!c) return;
+      cb.checked = true;
+      const detail = item.querySelector('.wizard-ins-detail');
+      detail.classList.add('open');
+      const provEl = item.querySelector('.vc-provider');
+      const amtEl  = item.querySelector('.vc-amount');
+      const cycEl  = item.querySelector('.vc-cycle');
+      if (provEl) provEl.value = c.provider || '';
+      if (amtEl)  amtEl.value  = c.premium_amount != null ? c.premium_amount : '';
+      if (cycEl)  cycEl.value  = c.premium_cycle || 'monthly';
     });
   } catch (_) {}
 }
@@ -350,6 +417,7 @@ async function preCheckContracts() {
   });
 
   renderInsuranceList();
+  renderAboList();
   await loadProfile();
   await preCheckContracts();
 })();

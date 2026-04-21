@@ -226,22 +226,9 @@
         <!-- Schritt 7: Abonnements -->
         <div class="wizard-step" id="step7">
           <h2 style="margin-bottom:8px;">Abonnements & laufende Kosten</h2>
-          <p class="text-muted" style="margin-bottom:16px;">Schritt 7 von 8 – Welche Abonnements haben Sie? (Mehrfachauswahl)</p>
-          <div class="wizard-check-grid" id="abosGrid">
-            <label class="wizard-check-item"><input type="checkbox" value="Stromvertrag" data-cat="subscription"> ⚡ Strom</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Gasvertrag" data-cat="subscription"> 🔥 Gas / Heizung</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Internetvertrag" data-cat="subscription"> 🌐 Internet</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Mobilfunkvertrag" data-cat="subscription"> 📱 Mobilfunk</label>
-            <label class="wizard-check-item"><input type="checkbox" value="GEZ / Rundfunkbeitrag" data-cat="subscription"> 📺 Rundfunkbeitrag</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Netflix" data-cat="subscription"> 🎬 Netflix</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Spotify" data-cat="subscription"> 🎵 Spotify</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Amazon Prime" data-cat="subscription"> 📦 Amazon Prime</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Disney+" data-cat="subscription"> 🎠 Disney+</label>
-            <label class="wizard-check-item"><input type="checkbox" value="YouTube Premium" data-cat="subscription"> ▶️ YouTube Premium</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Apple One" data-cat="subscription"> 🍎 Apple One</label>
-            <label class="wizard-check-item"><input type="checkbox" value="DAZN" data-cat="subscription"> ⚽ DAZN</label>
-          </div>
-          <p style="font-size:12px;color:var(--muted);margin-top:12px;">Beträge können Sie anschließend im Vertragsbereich ergänzen.</p>
+          <p class="text-muted" style="margin-bottom:16px;">Schritt 7 von 8 – Welche Abonnements haben Sie? Klicken Sie ein Häkchen, um Details zu hinterlegen.</p>
+          <div id="abosList"></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px;">Alle Angaben können Sie später im Vertragsbereich anpassen.</p>
           <div style="display:flex;gap:10px;margin-top:16px;">
             <button class="btn btn-secondary wizard-back">← Zurück</button>
             <button class="btn btn-primary" id="nextBtn7">Weiter →</button>
