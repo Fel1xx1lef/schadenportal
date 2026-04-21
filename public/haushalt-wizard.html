@@ -19,6 +19,14 @@
     .wizard-check-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: 14px; transition: background .15s; }
     .wizard-check-item:hover { background: var(--bg-subtle); }
     .wizard-check-item input[type=checkbox] { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; }
+    .wizard-ins-item { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; overflow: hidden; }
+    .wizard-ins-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; font-size: 14px; user-select: none; transition: background .15s; }
+    .wizard-ins-header:hover { background: var(--bg-subtle); }
+    .wizard-ins-header input[type=checkbox] { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; }
+    .wizard-ins-detail { display: none; padding: 10px 12px 12px; border-top: 1px solid var(--border); background: var(--bg-subtle); }
+    .wizard-ins-detail.open { display: block; }
+    .wizard-ins-detail-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .wizard-ins-detail-row > div { min-width: 80px; }
   </style>
 </head>
 <body>
@@ -206,20 +214,9 @@
         <!-- Schritt 6: Versicherungen -->
         <div class="wizard-step" id="step6">
           <h2 style="margin-bottom:8px;">Versicherungen</h2>
-          <p class="text-muted" style="margin-bottom:16px;">Schritt 6 von 8 – Welche Versicherungen haben Sie? (Mehrfachauswahl)</p>
-          <div class="wizard-check-grid" id="versicherungenGrid">
-            <label class="wizard-check-item"><input type="checkbox" value="Privathaftpflicht" data-cat="insurance"> 🛡️ Privathaftpflicht</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Kfz-Versicherung" data-cat="insurance"> 🚗 Kfz-Versicherung</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Hausratversicherung" data-cat="insurance"> 🏠 Hausrat</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Rechtsschutzversicherung" data-cat="insurance"> ⚖️ Rechtsschutz</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Berufsunfähigkeitsversicherung (BU)" data-cat="insurance"> 💼 Berufsunfähigkeit</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Risikolebensversicherung" data-cat="insurance"> ❤️ Risikoleben</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Unfallversicherung" data-cat="insurance"> 🩺 Unfall</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Zahnzusatzversicherung" data-cat="insurance"> 🦷 Zahnzusatz</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Gebäudeversicherung" data-cat="insurance"> 🏗️ Gebäude</label>
-            <label class="wizard-check-item"><input type="checkbox" value="Krankentagegeldversicherung" data-cat="insurance"> 🏥 Krankentagegeld</label>
-          </div>
-          <p style="font-size:12px;color:var(--muted);margin-top:12px;">Beträge können Sie anschließend im Vertragsbereich ergänzen.</p>
+          <p class="text-muted" style="margin-bottom:16px;">Schritt 6 von 8 – Welche Versicherungen haben Sie? Klicken Sie ein Häkchen, um Details zu hinterlegen.</p>
+          <div id="versicherungenList"></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px;">Alle Angaben können Sie später im Vertragsbereich anpassen.</p>
           <div style="display:flex;gap:10px;margin-top:16px;">
             <button class="btn btn-secondary wizard-back">← Zurück</button>
             <button class="btn btn-primary" id="nextBtn6">Weiter →</button>
