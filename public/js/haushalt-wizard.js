@@ -6,39 +6,14 @@ const val = id => { const el = document.getElementById(id); return el ? el.value
 const checked = id => { const el = document.getElementById(id); return el ? el.checked : false; };
 const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
 const setChecked = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
-const showAlert = msg => {
+
+function showAlert(msg) {
   const el = document.getElementById('wizardAlert');
   el.textContent = msg;
   el.classList.remove('hidden');
-};
-const hideAlert = () => document.getElementById('wizardAlert').classList.add('hidden');
-
-// Profil laden und Felder vorausfüllen
-async function loadProfile() {
-  try {
-    const res = await fetch('/api/profile');
-    if (!res.ok) return;
-    const p = await res.json();
-    setVal('w_beruf', p.beruf);
-    setVal('w_berufsgruppe', p.berufsgruppe);
-    setVal('w_wohneigentum', p.wohneigentum);
-    setVal('w_health_insurance_type', p.health_insurance_type);
-    setVal('w_health_insurance_provider', p.health_insurance_provider);
-    setVal('w_gross_income', p.gross_income);
-    setChecked('w_rente_aktiv', p.rente_aktiv === 'true' || p.rente_aktiv === true);
-    setVal('w_rente', p.rente);
-    setChecked('w_minijob_aktiv', p.minijob_aktiv === 'true' || p.minijob_aktiv === true);
-    setVal('w_minijob', p.minijob);
-    setChecked('w_kindergeld_aktiv', p.kindergeld_aktiv === 'true' || p.kindergeld_aktiv === true);
-    setVal('w_kindergeld', p.kindergeld);
-    setChecked('w_andere_einkuenfte_aktiv', p.andere_einkuenfte_aktiv === 'true' || p.andere_einkuenfte_aktiv === true);
-    setVal('w_andere_einkuenfte', p.andere_einkuenfte);
-    setVal('w_ausgaben_miete', p.ausgaben_miete);
-    setVal('w_ausgaben_nebenkosten', p.ausgaben_nebenkosten);
-    setVal('w_ausgaben_mobilitaet', p.ausgaben_mobilitaet);
-    // Toggle-Subs initial anzeigen wenn aktiv
-    ['rente', 'minijob', 'kindergeld', 'andere_einkuenfte'].forEach(k => updateToggle(k));
-  } catch (_) {}
+}
+function hideAlert() {
+  document.getElementById('wizardAlert').classList.add('hidden');
 }
 
 function updateToggle(key) {
@@ -46,7 +21,20 @@ function updateToggle(key) {
   document.getElementById('w_' + key + '_wrap').style.display = isChecked ? 'block' : 'none';
 }
 
-// Daten des aktuellen Schritts für PUT /api/profile
+function setStep(n) {
+  document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+  for (let i = 1; i <= TOTAL_STEPS; i++) {
+    const dot = document.getElementById('dot' + i);
+    if (i < n) dot.className = 'step-dot done';
+    else if (i === n) dot.className = 'step-dot active';
+    else dot.className = 'step-dot';
+  }
+  currentStep = n;
+  hideAlert();
+  window.scrollTo(0, 0);
+}
+
 function getStepData(step) {
   switch (step) {
     case 2: return {
@@ -87,28 +75,14 @@ async function saveCurrentStep() {
   return res.ok;
 }
 
-function setStep(n) {
-  document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
-  document.getElementById('step' + n).classList.add('active');
-  for (let i = 1; i <= TOTAL_STEPS; i++) {
-    const dot = document.getElementById('dot' + i);
-    if (i < n) dot.className = 'step-dot done';
-    else if (i === n) dot.className = 'step-dot active';
-    else dot.className = 'step-dot';
-  }
-  currentStep = n;
-  hideAlert();
-  window.scrollTo(0, 0);
-}
-
-function getNextBtn() {
+function getBtnForStep(step) {
   const ids = ['nextBtn', 'nextBtn2', 'nextBtn3', 'nextBtn4', 'nextBtn5'];
-  return document.getElementById(ids[currentStep - 1]) || null;
+  return document.getElementById(ids[step - 1]) || null;
 }
 
 async function wizardNext() {
   hideAlert();
-  const btn = getNextBtn();
+  const btn = getBtnForStep(currentStep);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
 
   const saved = await saveCurrentStep();
@@ -138,20 +112,57 @@ async function wizardFinish() {
   window.location.href = 'dashboard.html';
 }
 
-// Init
-document.addEventListener('DOMContentLoaded', async () => {
-  // Auth-Check
-  const me = await fetch('/api/auth/me').then(r => r.ok ? r.json() : null).catch(() => null);
-  if (!me) { window.location.href = 'login.html'; return; }
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) return;
+    const p = await res.json();
+    setVal('w_beruf', p.beruf);
+    setVal('w_berufsgruppe', p.berufsgruppe);
+    setVal('w_wohneigentum', p.wohneigentum);
+    setVal('w_health_insurance_type', p.health_insurance_type);
+    setVal('w_health_insurance_provider', p.health_insurance_provider);
+    setVal('w_gross_income', p.gross_income);
+    setChecked('w_rente_aktiv', p.rente_aktiv === 'true' || p.rente_aktiv === true);
+    setVal('w_rente', p.rente);
+    setChecked('w_minijob_aktiv', p.minijob_aktiv === 'true' || p.minijob_aktiv === true);
+    setVal('w_minijob', p.minijob);
+    setChecked('w_kindergeld_aktiv', p.kindergeld_aktiv === 'true' || p.kindergeld_aktiv === true);
+    setVal('w_kindergeld', p.kindergeld);
+    setChecked('w_andere_einkuenfte_aktiv', p.andere_einkuenfte_aktiv === 'true' || p.andere_einkuenfte_aktiv === true);
+    setVal('w_andere_einkuenfte', p.andere_einkuenfte);
+    setVal('w_ausgaben_miete', p.ausgaben_miete);
+    setVal('w_ausgaben_nebenkosten', p.ausgaben_nebenkosten);
+    setVal('w_ausgaben_mobilitaet', p.ausgaben_mobilitaet);
+    ['rente', 'minijob', 'kindergeld', 'andere_einkuenfte'].forEach(k => updateToggle(k));
+  } catch (_) {}
+}
 
-  // Logout
+// Init – IIFE-Muster wie alle anderen Portal-Seiten
+(async function () {
+  const me = await fetch('/api/auth/me').then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!me || !me.id) { window.location.href = 'login.html'; return; }
+
   document.getElementById('logoutBtn').addEventListener('click', async e => {
     e.preventDefault();
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = 'login.html';
   });
 
-  // "Jetzt nicht": wizard_done setzen → Dashboard, kein erneuter Redirect
+  // Schritt-Buttons verdrahten
+  document.getElementById('nextBtn').addEventListener('click', wizardNext);
+  document.getElementById('nextBtn2').addEventListener('click', wizardNext);
+  document.getElementById('nextBtn3').addEventListener('click', wizardNext);
+  document.getElementById('nextBtn4').addEventListener('click', wizardNext);
+  document.getElementById('nextBtn5').addEventListener('click', wizardNext);
+  document.getElementById('nextBtn6').addEventListener('click', wizardNext);
+  document.getElementById('finishBtn').addEventListener('click', wizardFinish);
+
+  document.querySelectorAll('.wizard-back').forEach(btn => {
+    btn.addEventListener('click', wizardBack);
+  });
+
+  // "Jetzt nicht": wizard_done setzen → kein erneuter Redirect
   document.getElementById('skipWizard').addEventListener('click', async e => {
     e.preventDefault();
     await fetch('/api/profile', {
@@ -168,4 +179,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   await loadProfile();
-});
+})();

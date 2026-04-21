@@ -73,7 +73,7 @@
         <div class="wizard-step active" id="step1">
           <h2 style="margin-bottom:8px;">Willkommen im Kundenportal</h2>
           <p class="text-muted" style="margin-bottom:24px;">In wenigen Schritten erfassen wir Ihre Haushaltsdaten. Das dauert nur 2–3 Minuten und ermöglicht eine persönliche Finanzübersicht.</p>
-          <button class="btn btn-primary" id="nextBtn" onclick="wizardNext()">Weiter →</button>
+          <button class="btn btn-primary" id="nextBtn">Weiter →</button>
           <p style="margin-top:12px;font-size:13px;"><a href="#" id="skipWizard" style="color:var(--muted);">Jetzt nicht – direkt zum Dashboard</a></p>
         </div>
 
@@ -119,8 +119,8 @@
             <input type="text" id="w_health_insurance_provider" class="form-control" placeholder="z. B. AOK, TK, DKV">
           </div>
           <div style="display:flex;gap:10px;margin-top:8px;">
-            <button class="btn btn-secondary" onclick="wizardBack()">← Zurück</button>
-            <button class="btn btn-primary" id="nextBtn2" onclick="wizardNext()">Weiter →</button>
+            <button class="btn btn-secondary" class="wizard-back">← Zurück</button>
+            <button class="btn btn-primary" id="nextBtn2">Weiter →</button>
           </div>
         </div>
 
@@ -161,8 +161,8 @@
             <input type="number" id="w_andere_einkuenfte" class="form-control" placeholder="Betrag in €" min="0" step="1">
           </div>
           <div style="display:flex;gap:10px;margin-top:16px;">
-            <button class="btn btn-secondary" onclick="wizardBack()">← Zurück</button>
-            <button class="btn btn-primary" id="nextBtn3" onclick="wizardNext()">Weiter →</button>
+            <button class="btn btn-secondary" class="wizard-back">← Zurück</button>
+            <button class="btn btn-primary" id="nextBtn3">Weiter →</button>
           </div>
         </div>
 
@@ -179,8 +179,8 @@
             <input type="number" id="w_ausgaben_nebenkosten" class="form-control" placeholder="0" min="0" step="1">
           </div>
           <div style="display:flex;gap:10px;margin-top:8px;">
-            <button class="btn btn-secondary" onclick="wizardBack()">← Zurück</button>
-            <button class="btn btn-primary" id="nextBtn4" onclick="wizardNext()">Weiter →</button>
+            <button class="btn btn-secondary" class="wizard-back">← Zurück</button>
+            <button class="btn btn-primary" id="nextBtn4">Weiter →</button>
           </div>
         </div>
 
@@ -193,8 +193,8 @@
             <input type="number" id="w_ausgaben_mobilitaet" class="form-control" placeholder="0" min="0" step="1">
           </div>
           <div style="display:flex;gap:10px;margin-top:8px;">
-            <button class="btn btn-secondary" onclick="wizardBack()">← Zurück</button>
-            <button class="btn btn-primary" id="nextBtn5" onclick="wizardNext()">Weiter →</button>
+            <button class="btn btn-secondary" class="wizard-back">← Zurück</button>
+            <button class="btn btn-primary" id="nextBtn5">Weiter →</button>
           </div>
         </div>
 
@@ -206,8 +206,8 @@
           <a href="contracts.html" class="btn btn-secondary" style="margin:16px 0;display:inline-block;">📋 Jetzt Verträge erfassen</a>
           <p style="font-size:13px;color:var(--muted);">Sie können das auch später tun.</p>
           <div style="display:flex;gap:10px;margin-top:8px;">
-            <button class="btn btn-secondary" onclick="wizardBack()">← Zurück</button>
-            <button class="btn btn-primary" onclick="wizardNext()">Weiter →</button>
+            <button class="btn btn-secondary" class="wizard-back">← Zurück</button>
+            <button class="btn btn-primary" id="nextBtn6">Weiter →</button>
           </div>
         </div>
 
@@ -217,7 +217,7 @@
             <div style="font-size:48px;margin-bottom:12px;">🎉</div>
             <h2 style="margin-bottom:8px;">Alles erledigt!</h2>
             <p class="text-muted" style="margin-bottom:24px;">Ihre Haushaltsdaten sind gespeichert. Das Dashboard zeigt jetzt Ihre persönliche Finanzübersicht.</p>
-            <button class="btn btn-primary" id="finishBtn" onclick="wizardFinish()">Zum Dashboard →</button>
+            <button class="btn btn-primary" id="finishBtn">Zum Dashboard →</button>
           </div>
         </div>
 
