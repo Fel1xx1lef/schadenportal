@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schaden melden – Schadenportal Schindelhauer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page-wrapper">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z" fill="currentColor"/></svg>
+      </div>
+      <div class="sidebar-company">Schadenportal</div>
+      <div class="sidebar-subtitle">Schindelhauer · Continentale</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">Navigation</div>
+      <a href="dashboard.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Meine Fälle</span>
+      </a>
+      <a href="case-new.html" class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Schaden melden</span>
+      </a>
+      <a href="profile.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Mein Profil</span>
+      </a>
+      <a href="change-password.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Passwort ändern</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebarUser"></div>
+      <button class="sidebar-logout" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Abmelden</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Schaden melden</h1>
+        <p class="page-subtitle">Beschreiben Sie Ihren Schaden – wir kümmern uns schnellstmöglich darum.</p>
+      </div>
+      <a href="dashboard.html" class="btn btn-secondary">Zurück zur Übersicht</a>
+    </div>
+
+    <div class="card animate-in" style="max-width:720px">
+      <div id="errorBox" class="alert alert-danger hidden" style="margin-bottom:20px"></div>
+      <div id="successBox" class="alert alert-success hidden" style="margin-bottom:20px"></div>
+
+      <form id="caseForm" novalidate>
+
+        <!-- Sparte -->
+        <div class="form-group">
+          <label class="form-label">Versicherungssparte <span style="color:var(--danger)">*</span></label>
+          <div class="sparte-grid" id="sparteGrid">
+            <div class="sparte-option" data-sparte="hausrat">
+              <div class="sparte-option-icon" style="background:#fef3c7">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <span>Hausrat</span>
+            </div>
+            <div class="sparte-option" data-sparte="wohngebaeude">
+              <div class="sparte-option-icon" style="background:#dbeafe">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#1d5ec7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="2"/><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+              </div>
+              <span>Wohngebäude</span>
+            </div>
+            <div class="sparte-option" data-sparte="haftpflicht">
+              <div class="sparte-option-icon" style="background:#dcfce7">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <span>Haftpflicht</span>
+            </div>
+            <div class="sparte-option" data-sparte="kfz">
+              <div class="sparte-option-icon" style="background:#ede9fe">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </div>
+              <span>Kfz</span>
+            </div>
+            <div class="sparte-option" data-sparte="glas">
+              <div class="sparte-option-icon" style="background:#cffafe">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              </div>
+              <span>Glas</span>
+            </div>
+          </div>
+          <input type="hidden" id="sparteInput" name="sparte">
+        </div>
+
+        <!-- Schadensdatum -->
+        <div class="form-group">
+          <label class="form-label" for="damageDate">Schadensdatum <span style="color:var(--danger)">*</span></label>
+          <input type="date" id="damageDate" class="form-control" max="" required>
+        </div>
+
+        <!-- Kurzbeschreibung -->
+        <div class="form-group">
+          <label class="form-label" for="title">Kurzbeschreibung <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="title" class="form-control" placeholder="z.B. Wasserschaden Keller, Einbruch, Glasbruch Wohnzimmer" maxlength="120" required>
+          <div class="form-hint">Maximal 120 Zeichen</div>
+        </div>
+
+        <!-- Schadensbeschreibung -->
+        <div class="form-group">
+          <label class="form-label" for="description">Schadensbeschreibung</label>
+          <textarea id="description" class="form-control" rows="5" placeholder="Beschreiben Sie den Schaden so genau wie möglich: Wie ist er entstanden? Was ist beschädigt? Welchen Umfang hat der Schaden?" maxlength="3000"></textarea>
+          <div class="form-hint">Optional, aber empfohlen. Maximal 3000 Zeichen.</div>
+        </div>
+
+        <!-- Dokumente -->
+        <div class="form-group">
+          <label class="form-label">Erste Dokumente / Fotos</label>
+          <label class="upload-area" for="fileInput" id="uploadArea">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="color:var(--muted);margin-bottom:8px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-weight:600;color:var(--text-secondary)">Dateien hier ablegen oder klicken</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">JPG, PNG, WebP, PDF · max. 10 MB pro Datei</div>
+            <input type="file" id="fileInput" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" style="display:none">
+          </label>
+          <div id="fileList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+          <a href="dashboard.html" class="btn btn-secondary">Abbrechen</a>
+          <button type="submit" id="submitBtn" class="btn btn-primary">Schaden melden</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<style>
+.sparte-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+@media (max-width: 640px) { .sparte-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 400px) { .sparte-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.sparte-option {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.sparte-option:hover { border-color: var(--primary); transform: translateY(-2px); }
+.sparte-option.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.sparte-option-icon { border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px 20px;
+  cursor: pointer;
+  background: #f8faff;
+  transition: all var(--transition);
+  text-align: center;
+}
+.upload-area:hover, .upload-area.drag-over { border-color: var(--primary); background: var(--primary-light); }
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.file-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item-remove { cursor: pointer; color: var(--danger); background: none; border: none; font-size: 18px; line-height: 1; padding: 0; }
+</style>
+
+<script>
+(function() {
+  let selectedSparte = '';
+  let selectedFiles = [];
+
+  async function init() {
+    try {
+      const me = await api('/api/auth/me');
+      document.getElementById('sidebarUser').textContent = me.full_name || me.email;
+    } catch { window.location.href = '/login.html'; return; }
+
+    document.getElementById('damageDate').max = new Date().toISOString().split('T')[0];
+  }
+
+  // Sparte selection
+  document.querySelectorAll('.sparte-option').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.sparte-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedSparte = el.dataset.sparte;
+      document.getElementById('sparteInput').value = selectedSparte;
+    });
+  });
+
+  // File handling
+  const fileInput = document.getElementById('fileInput');
+  const uploadArea = document.getElementById('uploadArea');
+  const fileList = document.getElementById('fileList');
+
+  fileInput.addEventListener('change', () => addFiles(Array.from(fileInput.files)));
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+  uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('drag-over'); addFiles(Array.from(e.dataTransfer.files)); });
+
+  function addFiles(files) {
+    files.forEach(f => { if (!selectedFiles.find(sf => sf.name === f.name && sf.size === f.size)) selectedFiles.push(f); });
+    renderFileList();
+  }
+
+  function renderFileList() {
+    fileList.innerHTML = selectedFiles.map((f, i) =>
+      `<div class="file-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="file-item-name">${escHtml(f.name)}</span>
+        <span style="color:var(--muted);font-size:11px">${(f.size/1024/1024).toFixed(1)} MB</span>
+        <button class="file-item-remove" data-index="${i}" type="button">×</button>
+      </div>`
+    ).join('');
+    fileList.querySelectorAll('.file-item-remove').forEach(btn => {
+      btn.addEventListener('click', () => { selectedFiles.splice(parseInt(btn.dataset.index), 1); renderFileList(); });
+    });
+  }
+
+  // Form submit
+  document.getElementById('caseForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    hideMessages();
+    const title = document.getElementById('title').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const damageDate = document.getElementById('damageDate').value;
+
+    if (!selectedSparte) { showError('Bitte wählen Sie eine Versicherungssparte aus.'); return; }
+    if (!title) { showError('Bitte geben Sie eine Kurzbeschreibung ein.'); return; }
+    if (!damageDate) { showError('Bitte geben Sie das Schadensdatum an.'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Wird gemeldet…';
+
+    try {
+      const c = await api('/api/cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sparte: selectedSparte, title, description, damage_date: damageDate })
+      });
+
+      // Upload files
+      for (const file of selectedFiles) {
+        const fd = new FormData();
+        fd.append('file', file);
+        await fetch('/api/cases/' + c._id + '/documents', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
+        });
+      }
+
+      window.location.href = '/case-detail.html?id=' + c._id;
+    } catch (err) {
+      showError('Fehler beim Melden des Schadens. Bitte versuchen Sie es erneut.');
+      btn.disabled = false; btn.textContent = 'Schaden melden';
+    }
+  });
+
+  function showError(msg) { const b = document.getElementById('errorBox'); b.textContent = msg; b.classList.remove('hidden'); b.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  function hideMessages() { document.getElementById('errorBox').classList.add('hidden'); document.getElementById('successBox').classList.add('hidden'); }
+  function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function api(url, opts = {}) {
+    const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) }, ...opts });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.status);
+    return data;
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    window.location.href = '/login.html';
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

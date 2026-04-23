@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schadensfall – Schadenportal Schindelhauer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page-wrapper">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z" fill="currentColor"/></svg>
+      </div>
+      <div class="sidebar-company">Schadenportal</div>
+      <div class="sidebar-subtitle">Schindelhauer · Continentale</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">Navigation</div>
+      <a href="dashboard.html" class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Meine Fälle</span>
+      </a>
+      <a href="case-new.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Schaden melden</span>
+      </a>
+      <a href="profile.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Mein Profil</span>
+      </a>
+      <a href="change-password.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Passwort ändern</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="sidebarUser"></div>
+      <button class="sidebar-logout" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Abmelden</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="content-header" style="margin-bottom:20px">
+      <div>
+        <a href="dashboard.html" style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-bottom:6px;text-decoration:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+          Zurück zur Übersicht
+        </a>
+        <h1 class="page-title" id="caseTitle">Schadensfall</h1>
+        <p class="page-subtitle" id="caseMeta"></p>
+      </div>
+      <span id="statusBadge"></span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start" id="detailGrid">
+
+      <!-- Left column -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <!-- Description -->
+        <div class="card animate-in" id="descCard" style="display:none">
+          <h3 class="card-title" style="margin-bottom:12px">Schadensbeschreibung</h3>
+          <p id="caseDescription" style="color:var(--text-secondary);line-height:1.7"></p>
+        </div>
+
+        <!-- Timeline -->
+        <div class="card animate-in" style="animation-delay:0.05s">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h3 class="card-title">Status-Timeline</h3>
+          </div>
+          <div id="timelineContainer">
+            <div style="color:var(--muted);font-size:13px">Lädt…</div>
+          </div>
+          <!-- Customer can add comment to timeline -->
+          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+            <div class="form-group" style="margin-bottom:8px">
+              <textarea id="timelineInput" class="form-control" rows="2" placeholder="Kommentar oder Ergänzung hinzufügen…" maxlength="1000"></textarea>
+            </div>
+            <button id="addTimelineBtn" class="btn btn-secondary" style="font-size:13px">Kommentar hinzufügen</button>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="card animate-in" style="animation-delay:0.1s">
+          <h3 class="card-title" style="margin-bottom:16px">Nachrichten</h3>
+          <div id="messagesContainer" style="display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto;margin-bottom:16px">
+            <div style="color:var(--muted);font-size:13px">Lädt…</div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;gap:8px">
+            <input type="text" id="msgInput" class="form-control" placeholder="Nachricht schreiben…" maxlength="2000" style="flex:1">
+            <button id="sendMsgBtn" class="btn btn-primary" style="flex-shrink:0">Senden</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <!-- Documents -->
+        <div class="card animate-in" style="animation-delay:0.08s">
+          <h3 class="card-title" style="margin-bottom:12px">Dokumente</h3>
+          <div id="docsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+            <div style="color:var(--muted);font-size:13px">Lädt…</div>
+          </div>
+          <select id="docType" class="form-control" style="margin-bottom:8px;font-size:13px">
+            <option value="Rechnung">Rechnung</option>
+            <option value="Kostenvoranschlag">Kostenvoranschlag</option>
+            <option value="Prüfbericht">Prüfbericht</option>
+            <option value="Abrechnung">Abrechnung</option>
+            <option value="Schadenanzeige">Schadenanzeige</option>
+            <option value="Schadenbilder">Schadenbilder</option>
+            <option value="Sonstiges" selected>Sonstiges</option>
+          </select>
+          <label class="upload-area-sm" for="docUpload">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Dokument hochladen
+            <input type="file" id="docUpload" multiple accept=".jpg,.jpeg,.png,.webp,.pdf" style="display:none">
+          </label>
+          <div id="uploadProgress" class="hidden" style="margin-top:8px;font-size:12px;color:var(--muted)">Lädt hoch…</div>
+        </div>
+
+        <!-- Case Info -->
+        <div class="card animate-in" style="animation-delay:0.12s">
+          <h3 class="card-title" style="margin-bottom:12px">Falldetails</h3>
+          <div id="caseInfo" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<style>
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before { content:''; position:absolute; left:8px; top:4px; bottom:4px; width:2px; background:var(--border); }
+.timeline-entry { position:relative; margin-bottom:20px; }
+.timeline-entry::before { content:''; position:absolute; left:-24px; top:4px; width:10px; height:10px; border-radius:50%; border:2px solid var(--border); background:var(--surface); }
+.timeline-entry.entry-admin::before { background:var(--primary); border-color:var(--primary); }
+.timeline-entry.entry-customer::before { background:var(--muted); border-color:var(--muted); }
+.timeline-bubble { border-radius:var(--radius-sm); padding:10px 14px; }
+.entry-admin .timeline-bubble { background:var(--primary-light); border-left:3px solid var(--primary); }
+.entry-customer .timeline-bubble { background:var(--bg-subtle); border-left:3px solid var(--muted); }
+.timeline-date { font-size:11px; color:var(--muted); margin-bottom:4px; }
+.timeline-text { font-size:13px; color:var(--text); line-height:1.6; }
+.timeline-author { display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-top:6px; padding:2px 7px; border-radius:10px; }
+.author-admin { background:var(--primary); color:#fff; }
+.author-kunde { background:var(--bg-subtle); color:var(--muted); }
+
+.msg-bubble { border-radius:var(--radius); padding:10px 14px; max-width:85%; }
+.msg-admin { align-self:flex-start; background:var(--bg-subtle); }
+.msg-kunde { align-self:flex-end; background:var(--primary); color:#fff; }
+.msg-meta { font-size:11px; color:var(--muted); margin-top:4px; }
+.msg-kunde .msg-meta { color:rgba(255,255,255,0.65); text-align:right; }
+.msg-name { font-weight:600; font-size:11px; margin-bottom:3px; color:var(--text-secondary); }
+.msg-kunde .msg-name { color:rgba(255,255,255,0.8); }
+
+.upload-area-sm {
+  display:flex; align-items:center; gap:8px; justify-content:center;
+  border:2px dashed var(--border); border-radius:var(--radius-sm);
+  padding:12px; cursor:pointer; background:#f8faff;
+  font-size:13px; font-weight:600; color:var(--text-secondary);
+  transition:all var(--transition);
+}
+.upload-area-sm:hover { border-color:var(--primary); color:var(--primary); }
+
+.doc-item {
+  display:flex; align-items:center; gap:8px;
+  background:var(--bg-subtle); border-radius:var(--radius-sm);
+  padding:8px 10px; font-size:12px;
+}
+.doc-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+.doc-item-role { font-size:10px; text-transform:uppercase; font-weight:700; letter-spacing:0.04em; }
+.doc-role-admin { color:var(--primary); }
+.doc-role-customer { color:var(--muted); }
+
+.info-row { display:flex; flex-direction:column; gap:2px; padding:8px 0; border-bottom:1px solid var(--border); }
+.info-row:last-child { border-bottom:none; }
+.info-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
+.info-value { font-size:14px; color:var(--text); font-weight:500; }
+
+.badge-status { display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase; }
+.badge-status::before { content:'';width:7px;height:7px;border-radius:50%;display:block; }
+.badge-offen { background:#fef3c7;color:#92400e; } .badge-offen::before { background:#d97706; }
+.badge-in_bearbeitung { background:#dbeafe;color:#1e40af; } .badge-in_bearbeitung::before { background:#1d5ec7; }
+.badge-abgeschlossen { background:#dcfce7;color:#166534; } .badge-abgeschlossen::before { background:#53a117; }
+
+@media(max-width:900px) { #detailGrid { grid-template-columns:1fr; } }
+</style>
+
+<script>
+(function() {
+  const params = new URLSearchParams(location.search);
+  const caseId = params.get('id');
+  let myRole = 'customer';
+
+  if (!caseId) { window.location.href = '/dashboard.html'; return; }
+
+  const SPARTE_LABELS = { hausrat:'Hausrat', wohngebaeude:'Wohngebäude', haftpflicht:'Haftpflicht', kfz:'Kfz', glas:'Glas' };
+  const STATUS_LABELS = { offen:'Offen', in_bearbeitung:'In Bearbeitung', abgeschlossen:'Abgeschlossen' };
+
+  async function init() {
+    try {
+      const me = await api('/api/auth/me');
+      document.getElementById('sidebarUser').textContent = me.full_name || me.email;
+      myRole = me.role;
+    } catch { window.location.href = '/login.html'; return; }
+
+    await Promise.all([loadCase(), loadTimeline(), loadDocs(), loadMessages()]);
+  }
+
+  async function loadCase() {
+    try {
+      const c = await api('/api/cases/' + caseId);
+      document.getElementById('caseTitle').textContent = c.title;
+      document.getElementById('caseMeta').textContent = (SPARTE_LABELS[c.sparte] || c.sparte) + ' · ' + c.case_number;
+      document.getElementById('statusBadge').innerHTML = `<span class="badge-status badge-${c.status}">${STATUS_LABELS[c.status] || c.status}</span>`;
+      if (c.description) {
+        document.getElementById('caseDescription').textContent = c.description;
+        document.getElementById('descCard').style.display = '';
+      }
+      const damageDate = c.damage_date ? new Date(c.damage_date).toLocaleDateString('de-DE') : '—';
+      const createdDate = new Date(c.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+      document.getElementById('caseInfo').innerHTML = `
+        <div class="info-row"><div class="info-label">Fallnummer</div><div class="info-value" style="font-family:monospace">${c.case_number}</div></div>
+        <div class="info-row"><div class="info-label">Sparte</div><div class="info-value">${SPARTE_LABELS[c.sparte] || c.sparte}</div></div>
+        <div class="info-row"><div class="info-label">Schadenstag</div><div class="info-value">${damageDate}</div></div>
+        <div class="info-row"><div class="info-label">Gemeldet am</div><div class="info-value">${createdDate}</div></div>
+        <div class="info-row"><div class="info-label">Status</div><div class="info-value">${STATUS_LABELS[c.status] || c.status}</div></div>
+      `;
+    } catch { }
+  }
+
+  async function loadTimeline() {
+    try {
+      const entries = await api('/api/cases/' + caseId + '/timeline');
+      const container = document.getElementById('timelineContainer');
+      if (!entries.length) { container.innerHTML = '<div style="color:var(--muted);font-size:13px">Noch keine Einträge.</div>'; return; }
+      container.innerHTML = '<div class="timeline">' + entries.map(e => {
+        const isAdmin = e.author_role === 'admin';
+        const dt = new Date(e.created_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        return `<div class="timeline-entry ${isAdmin ? 'entry-admin' : 'entry-customer'}">
+          <div class="timeline-bubble">
+            <div class="timeline-date">${dt}</div>
+            <div class="timeline-text">${escHtml(e.text)}</div>
+            <span class="timeline-author ${isAdmin ? 'author-admin' : 'author-kunde'}">${isAdmin ? 'Agentur' : 'Sie'}</span>
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+    } catch { }
+  }
+
+  async function loadDocs() {
+    try {
+      const docs = await api('/api/cases/' + caseId + '/documents');
+      const container = document.getElementById('docsList');
+      if (!docs.length) { container.innerHTML = '<div style="color:var(--muted);font-size:13px">Noch keine Dokumente.</div>'; return; }
+      container.innerHTML = docs.map(d => {
+        const isAdmin = d.uploaded_by_role === 'admin';
+        const icon = d.mimetype === 'application/pdf'
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        const typeTag = d.doc_type ? `<span style="font-size:10px;background:var(--bg-subtle);padding:1px 5px;border-radius:4px;color:var(--text-secondary)">${escHtml(d.doc_type)}</span>` : '';
+        return `<a class="doc-item" href="/uploads/documents/${d.filename}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+          ${icon}
+          <span class="doc-item-name" title="${escHtml(d.original_name)}">${escHtml(d.original_name)}</span>
+          ${typeTag}
+          <span class="doc-item-role ${isAdmin ? 'doc-role-admin' : 'doc-role-customer'}">${isAdmin ? 'Agentur' : 'Sie'}</span>
+        </a>`;
+      }).join('');
+    } catch { }
+  }
+
+  async function loadMessages() {
+    try {
+      const msgs = await api('/api/cases/' + caseId + '/messages');
+      const container = document.getElementById('messagesContainer');
+      if (!msgs.length) { container.innerHTML = '<div style="color:var(--muted);font-size:13px">Noch keine Nachrichten.</div>'; return; }
+      container.innerHTML = msgs.map(m => {
+        const isAdmin = m.author_role === 'admin';
+        const isMine = (myRole === 'customer' && !isAdmin) || (myRole === 'admin' && isAdmin);
+        const dt = new Date(m.created_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'}">
+          <div class="msg-bubble ${isAdmin ? 'msg-admin' : 'msg-kunde'}">
+            <div class="msg-name">${escHtml(m.author_name)}</div>
+            <div>${escHtml(m.text)}</div>
+            <div class="msg-meta">${dt}</div>
+          </div>
+        </div>`;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    } catch { }
+  }
+
+  // Add timeline comment
+  document.getElementById('addTimelineBtn').addEventListener('click', async () => {
+    const text = document.getElementById('timelineInput').value.trim();
+    if (!text) return;
+    try {
+      await api('/api/cases/' + caseId + '/timeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      document.getElementById('timelineInput').value = '';
+      await loadTimeline();
+    } catch (e) { alert('Fehler: ' + e.message); }
+  });
+
+  // Send message
+  document.getElementById('sendMsgBtn').addEventListener('click', sendMsg);
+  document.getElementById('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
+  async function sendMsg() {
+    const text = document.getElementById('msgInput').value.trim();
+    if (!text) return;
+    try {
+      await api('/api/cases/' + caseId + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+      document.getElementById('msgInput').value = '';
+      await loadMessages();
+    } catch (e) { alert('Fehler: ' + e.message); }
+  }
+
+  // Document upload
+  document.getElementById('docUpload').addEventListener('change', async function() {
+    const files = Array.from(this.files);
+    if (!files.length) return;
+    const docType = document.getElementById('docType').value;
+    const prog = document.getElementById('uploadProgress');
+    prog.classList.remove('hidden');
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('doc_type', docType);
+      prog.textContent = 'Lädt hoch: ' + file.name;
+      await fetch('/api/cases/' + caseId + '/documents', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
+      });
+    }
+    prog.classList.add('hidden');
+    this.value = '';
+    await loadDocs();
+  });
+
+  function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function api(url, opts = {}) {
+    const res = await fetch(url, { credentials: 'same-origin', ...opts, headers: { 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.status);
+    return data;
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    window.location.href = '/login.html';
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

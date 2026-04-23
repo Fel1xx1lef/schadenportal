@@ -1,4 +1,4 @@
-# Deployment-Anleitung: Kundenportal auf GitHub & beim Kunden ausrollen
+# Deployment-Anleitung: Schadenportal Schindelhauer auf GitHub & beim Kunden ausrollen
 
 ## Inhaltsverzeichnis
 1. [Sicherheits-Check vor dem ersten Push](#1-sicherheits-check-vor-dem-ersten-push)

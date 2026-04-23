@@ -3,392 +3,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mein Profil – Kundenportal Schindelhauer</title>
+  <title>Mein Profil – Schadenportal Schindelhauer</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="page-wrapper">
 
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="sidebar-logo-mark">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z"/>
-        </svg>
+        <svg viewBox="0 0 24 24"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7l-9-5z" fill="currentColor"/></svg>
       </div>
-      <div class="sidebar-company">Felix Schindelhauer GmbH</div>
-      <div class="sidebar-subtitle">Kundenportal</div>
+      <div class="sidebar-company">Schadenportal</div>
+      <div class="sidebar-subtitle">Schindelhauer · Continentale</div>
     </div>
-
     <nav class="sidebar-nav">
       <div class="sidebar-nav-label">Navigation</div>
       <a href="dashboard.html" class="nav-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        <span>Übersicht</span>
+        <span>Meine Fälle</span>
       </a>
-      <a href="contracts.html" class="nav-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        <span>Meine Verträge</span>
-      </a>
-      <a href="contact.html" class="nav-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Kontakt</span>
+      <a href="case-new.html" class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Schaden melden</span>
       </a>
       <a href="profile.html" class="nav-item active">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span>Mein Profil</span>
       </a>
-      <a href="consent.html" class="nav-item">
+      <a href="change-password.html" class="nav-item">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span>Datenschutz</span>
+        <span>Passwort ändern</span>
       </a>
     </nav>
-
     <div class="sidebar-footer">
-      <a href="#" id="logoutBtn" class="nav-item">
+      <div class="sidebar-user" id="sidebarUser"></div>
+      <button class="sidebar-logout" id="logoutBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         <span>Abmelden</span>
-      </a>
-      <p style="font-size:11px;color:var(--text-secondary);text-align:center;margin-top:10px;">
-        <a href="https://versicherung-schindelhauer.de/datenschutz" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">Datenschutz</a>
-        &nbsp;|&nbsp;
-        <a href="https://versicherung-schindelhauer.de/impressum" target="_blank" rel="noopener noreferrer" style="color:var(--text-secondary);">Impressum</a>
-      </p>
+      </button>
     </div>
   </aside>
 
-  <!-- Main -->
-  <div class="main-content">
-    <main class="main">
-      <div class="page-header">
-        <div>
-          <h1>Mein Profil</h1>
-          <p class="page-header-sub">Persönliche Daten und Präferenzen</p>
-        </div>
+  <main class="main-content">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Mein Profil</h1>
+        <p class="page-subtitle">Kontaktdaten und Benachrichtigungseinstellungen</p>
       </div>
+    </div>
 
-      <!-- Profilvollständigkeit -->
-      <div class="card animate-in" style="margin-bottom:20px;">
-        <div class="card-title"><span class="icon">📊</span>Profilvollständigkeit</div>
-        <div class="profile-completion-wrap">
-          <div class="profile-completion-bar">
-            <div class="profile-completion-fill" id="completionFill" style="width:0%"></div>
-          </div>
-          <span class="profile-completion-label" id="completionLabel">0 %</span>
+    <div class="card animate-in" style="max-width:560px">
+      <div id="successBox" class="alert alert-success hidden" style="margin-bottom:20px"></div>
+      <div id="errorBox" class="alert alert-danger hidden" style="margin-bottom:20px"></div>
+
+      <form id="profileForm" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="fullName">Vollständiger Name</label>
+          <input type="text" id="fullName" class="form-control" maxlength="80">
         </div>
-        <p class="text-muted" style="margin-top:10px;font-size:14px;">
-          Je vollständiger Ihr Profil, desto genauer können wir Ihnen passende Versicherungen empfehlen.
-        </p>
-      </div>
-
-      <div id="alertMsg" class="alert alert-success hidden">Profil erfolgreich gespeichert!</div>
-      <div id="errorMsg" class="alert alert-error hidden"></div>
-
-      <form id="profileForm">
-        <div class="profile-cards-grid">
-
-          <!-- Persönliche Daten -->
-          <div class="card animate-in">
-            <div class="card-title"><span class="icon">👤</span>Persönliche Daten</div>
-            <div class="form-group">
-              <label>Vollständiger Name</label>
-              <input type="text" id="fFullName" class="form-control" placeholder="Vor- und Nachname">
-            </div>
-            <div class="form-group">
-              <label>Geburtsdatum</label>
-              <input type="date" id="fBirthDate" class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Familienstand</label>
-              <select id="fMaritalStatus" class="form-control">
-                <option value="">Bitte wählen…</option>
-                <option value="ledig">Ledig</option>
-                <option value="verheiratet">Verheiratet</option>
-                <option value="geschieden">Geschieden</option>
-                <option value="verwitwet">Verwitwet</option>
-              </select>
-            </div>
-            <div class="form-group" id="spouseGroup">
-              <label>Name des Ehepartners</label>
-              <input type="text" id="fSpouseName" class="form-control" placeholder="Optional">
-            </div>
-            <div class="form-group">
-              <label>Beruf</label>
-              <input type="text" id="fBeruf" class="form-control" placeholder="z.B. Kaufmann, Ingenieur">
-            </div>
-            <div class="form-group">
-              <label>Berufsgruppe</label>
-              <select id="fBerufsgruppe" class="form-control">
-                <option value="">Bitte wählen…</option>
-                <option value="angestellter">Angestellter</option>
-                <option value="selbststaendig">Selbstständig/Freiberufler</option>
-                <option value="beamter">Beamter/Öffentlicher Dienst</option>
-                <option value="rentner">Rentner/Pensionär</option>
-                <option value="sonstiges">Sonstiges</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Kontaktdaten -->
-          <div class="card animate-in">
-            <div class="card-title"><span class="icon">📞</span>Kontaktdaten</div>
-            <div class="form-group">
-              <label>E-Mail-Adresse</label>
-              <input type="email" id="fEmail" class="form-control" disabled>
-              <small class="text-muted">Die E-Mail kann nicht geändert werden.</small>
-            </div>
-            <div class="form-group">
-              <label>Telefon</label>
-              <input type="tel" id="fPhone" class="form-control" placeholder="Festnetz">
-            </div>
-            <div class="form-group">
-              <label>Handynummer</label>
-              <input type="tel" id="fMobile" class="form-control" placeholder="Mobil">
-            </div>
-          </div>
-
-          <!-- Einkommen -->
-          <div class="card animate-in">
-            <div class="card-title"><span class="icon">💰</span>Einkommen</div>
-            <div class="form-group">
-              <label>Nettoeinkommen (€ / Monat)</label>
-              <input type="number" id="fGrossIncome" class="form-control" placeholder="0,00" min="0" step="0.01">
-            </div>
-            <p style="font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 12px;">Weitere Einkommensquellen</p>
-            <!-- Rente -->
-            <div class="form-group">
-              <label>Bekommst du Rente?</label>
-              <div class="toggle-group" id="renteToggle" style="margin-top:6px;">
-                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
-                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
-              </div>
-              <input type="hidden" id="fRenteAktiv" value="">
-            </div>
-            <div id="renteAmountGroup" class="form-group" style="display:none;">
-              <label>Rente (€ / Monat)</label>
-              <input type="number" id="fRente" class="form-control" placeholder="0,00" min="0" step="0.01">
-            </div>
-            <!-- Minijob -->
-            <div class="form-group">
-              <label>Hast du einen Minijob?</label>
-              <div class="toggle-group" id="minijobToggle" style="margin-top:6px;">
-                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
-                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
-              </div>
-              <input type="hidden" id="fMinijobAktiv" value="">
-            </div>
-            <div id="minijobAmountGroup" class="form-group" style="display:none;">
-              <label>Minijob (€ / Monat)</label>
-              <input type="number" id="fMinijob" class="form-control" placeholder="0,00" min="0" step="0.01">
-            </div>
-            <!-- Kindergeld -->
-            <div class="form-group">
-              <label>Bekommst du Kindergeld?</label>
-              <div class="toggle-group" id="kindergeldToggle" style="margin-top:6px;">
-                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
-                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
-              </div>
-              <input type="hidden" id="fKindergeldAktiv" value="">
-            </div>
-            <div id="kindergeldAmountGroup" class="form-group" style="display:none;">
-              <label>Kindergeld (€ / Monat)</label>
-              <input type="number" id="fKindergeld" class="form-control" placeholder="0,00" min="0" step="0.01">
-            </div>
-            <!-- Andere Einkünfte -->
-            <div class="form-group">
-              <label>Hast du andere Einkünfte?</label>
-              <div class="toggle-group" id="andereEinkuenfteToggle" style="margin-top:6px;">
-                <button type="button" class="toggle-btn" data-aktiv="ja">Ja</button>
-                <button type="button" class="toggle-btn" data-aktiv="nein">Nein</button>
-              </div>
-              <input type="hidden" id="fAndereEinkuenfteAktiv" value="">
-            </div>
-            <div id="andereEinkuenfteAmountGroup" class="form-group" style="display:none;">
-              <label>Andere Einkünfte (€ / Monat)</label>
-              <input type="number" id="fAndereEinkuenfte" class="form-control" placeholder="0,00" min="0" step="0.01">
-            </div>
-          </div>
-
-          <!-- Krankenversicherung (Art. 6 Abs. 1 lit. b DSGVO) -->
-          <div class="card animate-in" id="kvCard">
-            <div class="card-title"><span class="icon">🏥</span>Krankenversicherung</div>
-            <div id="kvFields">
-              <div class="form-group">
-                <label>Versicherungsart</label>
-                <div class="toggle-group" id="kvToggle" style="margin-top:6px;">
-                  <button type="button" class="toggle-btn" data-kv="gkv">GKV (gesetzlich)</button>
-                  <button type="button" class="toggle-btn" data-kv="pkv">PKV (privat)</button>
-                </div>
-                <input type="hidden" id="fKvType" value="">
-              </div>
-              <div class="form-group" id="kvProviderGroup" style="display:none">
-                <label id="kvProviderLabel">Krankenkasse</label>
-                <input type="text" id="fKvProvider" class="form-control" placeholder="z.B. AOK, Techniker Krankenkasse…">
-              </div>
-            </div>
-          </div>
-
-          <!-- Wohnsituation -->
-          <div class="card animate-in">
-            <div class="card-title"><span class="icon">🏠</span>Wohnsituation</div>
-            <div class="form-group">
-              <label>Wohneigentum</label>
-              <select id="fWohneigentum" class="form-control">
-                <option value="">Bitte wählen…</option>
-                <option value="mieter">Mieter</option>
-                <option value="eigentuemer-haus">Eigentümer (Haus)</option>
-                <option value="eigentuemer-wohnung">Eigentümer (Wohnung)</option>
-                <option value="sonstiges">Sonstiges</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Ausgaben -->
-          <div class="card animate-in" style="grid-column: 1 / -1;">
-            <div class="card-title"><span class="icon">📉</span>Monatliche Ausgaben</div>
-            <div class="ausgaben-grid">
-              <div class="form-group">
-                <label>Miete / Hypothek (€ / Monat)</label>
-                <input type="number" id="fAusgabenMiete" class="form-control" placeholder="0,00" min="0" step="0.01">
-              </div>
-              <div class="form-group">
-                <label>Nebenkosten (Strom, Wasser, Gas) (€ / Monat)</label>
-                <input type="number" id="fAusgabenNebenkosten" class="form-control" placeholder="0,00" min="0" step="0.01">
-              </div>
-              <div class="form-group">
-                <label>Mobilität (Auto, ÖPNV) (€ / Monat)</label>
-                <input type="number" id="fAusgabenMobilitaet" class="form-control" placeholder="0,00" min="0" step="0.01">
-              </div>
-            </div>
-            <!-- Automatisch aus Verträgen -->
-            <div style="margin-top:16px;padding:14px 16px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;">Automatisch aus Ihren Verträgen</div>
-              <div class="auto-contracts-grid">
-                <div>
-                  <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Versicherungen</div>
-                  <div id="autoVersicherungen" style="font-weight:600;color:var(--text);">€ 0,00</div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Abos &amp; lfd. Kosten</div>
-                  <div id="autoAbos" style="font-weight:600;color:var(--text);">€ 0,00</div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Sonstiges (Verträge)</div>
-                  <div id="autoSonstiges" style="font-weight:600;color:var(--text);">€ 0,00</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <div class="form-group">
+          <label class="form-label" for="phone">Telefon</label>
+          <input type="tel" id="phone" class="form-control" placeholder="z.B. 0231 1234567">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="mobile">Mobil</label>
+          <input type="tel" id="mobile" class="form-control" placeholder="z.B. 0151 12345678">
         </div>
 
-        <!-- Finanzübersicht -->
-        <div class="card animate-in" style="margin-top:24px;">
-          <div class="card-title"><span class="icon">📊</span>Finanzübersicht (monatlich)</div>
-          <div class="fz-grid-3">
-            <div style="background:var(--success-light);border:1px solid #c6e9b0;border-radius:var(--radius);padding:18px 20px;">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--success);margin-bottom:8px;">Gesamteinnahmen</div>
-              <div id="fzGesamteinnahmen" class="fz-amount" style="color:var(--success);">€ 0,00</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Netto + weitere Quellen</div>
-            </div>
-            <div style="background:var(--danger-light);border:1px solid #fca5a5;border-radius:var(--radius);padding:18px 20px;">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);margin-bottom:8px;">Gesamtausgaben</div>
-              <div id="fzGesamtausgaben" class="fz-amount" style="color:var(--danger);">€ 0,00</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Alle Ausgabenposten</div>
-            </div>
-            <div id="fzBilanzBox" style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;">
-              <div id="fzBilanzLabel" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Monatlicher Überschuss</div>
-              <div id="fzBilanz" class="fz-amount" style="color:var(--muted);">€ 0,00</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Einnahmen − Ausgaben</div>
-            </div>
+        <div class="form-group">
+          <label class="form-label">Benachrichtigungen</label>
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
+            Wie möchten Sie informiert werden, wenn es Neuigkeiten zu Ihrem Schadensfall gibt?
+          </p>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);transition:all var(--transition)" id="emailLabel">
+              <input type="radio" name="notification" value="email" id="notifEmail" style="accent-color:var(--primary)">
+              <div>
+                <div style="font-weight:600;font-size:14px">Per E-Mail</div>
+                <div style="font-size:12px;color:var(--muted)">Sie erhalten eine E-Mail bei jedem Status-Update.</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);transition:all var(--transition)" id="waLabel">
+              <input type="radio" name="notification" value="whatsapp" id="notifWhatsapp" style="accent-color:var(--primary)">
+              <div>
+                <div style="font-weight:600;font-size:14px">Per WhatsApp</div>
+                <div style="font-size:12px;color:var(--muted)">Der Sachbearbeiter öffnet WhatsApp mit einer vorbereiteten Nachricht an Sie.</div>
+              </div>
+            </label>
           </div>
         </div>
 
-        <div style="margin-top:24px;">
-          <button type="submit" class="btn btn-primary" id="saveBtn">💾 Profil speichern</button>
+        <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:8px">
+          <button type="submit" id="saveBtn" class="btn btn-primary">Speichern</button>
         </div>
       </form>
-
-      <!-- D1: Datenauskunft (Art. 15 DSGVO) -->
-      <div class="card animate-in" style="margin-top:24px;">
-        <div class="card-title"><span class="icon">📥</span>Meine Daten exportieren</div>
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">
-          Du hast das Recht, alle über dich gespeicherten Daten zu erhalten (Art. 15 DSGVO). Der Export enthält dein Profil, Verträge, Nachrichten, Termine und Aktivitätsprotokolle.
-        </p>
-        <a href="/api/auth/data-export" class="btn btn-secondary" download="meine-daten.txt">
-          Daten als TXT herunterladen
-        </a>
-      </div>
-
-      <!-- Konto löschen -->
-      <div class="card animate-in" style="margin-top:24px;border-color:#fca5a5;">
-        <div class="card-title" style="color:var(--danger)"><span class="icon">🗑️</span>Konto löschen</div>
-        <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">
-          Hiermit wird dein Konto dauerhaft gelöscht. Alle gespeicherten Daten (Verträge, Profil, Nachrichten) werden vollständig und unwiderruflich entfernt.
-        </p>
-        <div id="deleteAccountAlert" class="alert alert-error hidden" style="margin-bottom:12px;"></div>
-        <div id="deleteAccountForm" style="display:none;margin-bottom:12px;">
-          <div class="form-group" style="max-width:320px;">
-            <label>Passwort zur Bestätigung</label>
-            <input type="password" id="deleteAccountPassword" class="form-control" placeholder="Dein aktuelles Passwort">
-          </div>
-          <button class="btn btn-danger" id="deleteAccountConfirmBtn">Konto endgültig löschen</button>
-          <button type="button" class="btn btn-secondary" id="deleteAccountCancelBtn" style="margin-left:8px;">Abbrechen</button>
-        </div>
-        <button class="btn btn-secondary" id="deleteAccountBtn" style="border-color:#fca5a5;color:var(--danger);">Konto löschen…</button>
-      </div>
-
-      <!-- Passwort ändern -->
-      <div class="card animate-in" style="margin-top:24px;">
-        <div class="card-title"><span class="icon">🔑</span>Passwort ändern</div>
-        <div id="pwChangeAlert" class="alert hidden" style="margin-bottom:16px;"></div>
-        <form id="pwChangeForm">
-          <div class="form-group" style="max-width:360px;">
-            <label>Aktuelles Passwort</label>
-            <input type="password" id="pwCurrent" class="form-control" placeholder="••••••••" required autocomplete="current-password">
-          </div>
-          <div class="form-group" style="max-width:360px;">
-            <label>Neues Passwort</label>
-            <input type="password" id="pwNew" class="form-control" placeholder="Mindestens 12 Zeichen" required minlength="12" autocomplete="new-password">
-          </div>
-          <div class="form-group" style="max-width:360px;">
-            <label>Neues Passwort bestätigen</label>
-            <input type="password" id="pwConfirm" class="form-control" placeholder="••••••••" required autocomplete="new-password">
-          </div>
-          <button type="submit" class="btn btn-primary" id="pwChangeBtn">Passwort ändern</button>
-        </form>
-      </div>
-
-      <!-- 2FA Karte -->
-      <div class="card animate-in" style="margin-top:24px;" id="twoFactorCard">
-        <div class="card-title"><span class="icon">🔐</span>Zwei-Faktor-Authentifizierung</div>
-        <div id="twofa-status-enabled" class="hidden">
-          <p>2FA ist <strong>aktiviert</strong>. Ihr Konto ist durch einen Authentifizierungscode geschützt.</p>
-          <div style="margin-top:16px;">
-            <button class="btn btn-secondary" id="btnDisable2fa">2FA deaktivieren</button>
-          </div>
-          <div id="disableForm" class="hidden" style="margin-top:16px;">
-            <div class="form-group">
-              <label>Aktuelles Passwort bestätigen</label>
-              <input type="password" id="disablePassword" class="form-control" placeholder="Ihr Passwort">
-            </div>
-            <button class="btn btn-danger" id="btnConfirmDisable">Deaktivieren bestätigen</button>
-          </div>
-        </div>
-        <div id="twofa-status-disabled" class="hidden">
-          <p>2FA ist <strong>nicht aktiviert</strong>. Erhöhen Sie die Sicherheit Ihres Kontos.</p>
-          <div style="margin-top:16px;">
-            <a href="2fa-setup.html" class="btn btn-primary">2FA einrichten</a>
-          </div>
-        </div>
-        <div id="twofa-alert" class="alert alert-error hidden" style="margin-top:12px;"></div>
-      </div>
-    </main>
-  </div>
+    </div>
+  </main>
 </div>
 
-<script src="js/agency.js"></script>
-<script src="js/profile.js"></script>
+<script>
+(function() {
+  async function init() {
+    try {
+      const me = await api('/api/auth/me');
+      document.getElementById('sidebarUser').textContent = me.full_name || me.email;
+      document.getElementById('fullName').value = me.full_name || '';
+      document.getElementById('phone').value = me.phone || '';
+      document.getElementById('mobile').value = me.mobile || '';
+      const pref = me.notification_preference || 'email';
+      document.querySelector(`input[name="notification"][value="${pref}"]`).checked = true;
+      highlightSelected();
+    } catch { window.location.href = '/login.html'; }
+  }
+
+  function highlightSelected() {
+    document.querySelectorAll('input[name="notification"]').forEach(r => {
+      r.closest('label').style.borderColor = r.checked ? 'var(--primary)' : 'var(--border)';
+      r.closest('label').style.background = r.checked ? 'var(--primary-light)' : '';
+    });
+  }
+  document.querySelectorAll('input[name="notification"]').forEach(r => r.addEventListener('change', highlightSelected));
+
+  document.getElementById('profileForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    document.getElementById('successBox').classList.add('hidden');
+    document.getElementById('errorBox').classList.add('hidden');
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Speichern…';
+    try {
+      await api('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: document.getElementById('fullName').value.trim(),
+          phone: document.getElementById('phone').value.trim(),
+          mobile: document.getElementById('mobile').value.trim(),
+          notification_preference: document.querySelector('input[name="notification"]:checked')?.value || 'email'
+        })
+      });
+      const s = document.getElementById('successBox');
+      s.textContent = 'Profil gespeichert.';
+      s.classList.remove('hidden');
+    } catch (err) {
+      const b = document.getElementById('errorBox');
+      b.textContent = 'Fehler beim Speichern.';
+      b.classList.remove('hidden');
+    } finally { btn.disabled = false; btn.textContent = 'Speichern'; }
+  });
+
+  async function api(url, opts = {}) {
+    const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) }, ...opts });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.status);
+    return data;
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    window.location.href = '/login.html';
+  });
+
+  init();
+})();
+</script>
 </body>
 </html>

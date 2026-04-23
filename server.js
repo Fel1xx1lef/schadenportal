@@ -2,1272 +2,469 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
-const { createClient: createRedisClient } = require('redis');
-const RedisStore = require('connect-redis').default;
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const OTPAuth = require('otpauth');
-const QRCode = require('qrcode');
-const crypto = require('crypto');
+const multer = require('multer');
+const nodemailer = require('nodemailer');
 const path = require('path');
-const { users, contracts, messages, activityLog, settings, appointments, seedAdmin, seedSettings } = require('./db');
+const fs = require('fs');
+
+const { users, cases, timeline, documents, messages, settings, getNextCaseNumber, seedAdmin, seedSettings } = require('./db');
 const { requireLogin, requireAdmin } = require('./middleware/auth');
 
-const fs     = require('fs');
-const multer = require('multer');
-
-const ALLOWED_UPLOAD_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
-const ALLOWED_UPLOAD_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
-
-// UPLOADS_DIR kann als Umgebungsvariable gesetzt werden (z.B. Railway Volume-Mount).
-// Fallback: lokales ./uploads Verzeichnis (nur für Entwicklung geeignet).
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
-
-const uploadScan = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(UPLOADS_DIR, 'contracts');
-      fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      // H2: sanitize id to prevent path traversal
-      const id  = (req.params.contractId || req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
-      cb(null, `${id}-${Date.now()}${ext}`);
-    }
-  }),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  // H1: check both MIME type and file extension
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ALLOWED_UPLOAD_MIMES.includes(file.mimetype) && ALLOWED_UPLOAD_EXTS.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Ungültiger Dateityp. Erlaubt: JPG, PNG, WEBP'));
-    }
-  }
-});
-
-if (!process.env.SESSION_SECRET) {
-  console.error('FATAL: SESSION_SECRET nicht in .env gesetzt!');
-  process.exit(1);
-}
-
-if (!process.env.TOTP_ENCRYPTION_KEY) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('FATAL: TOTP_ENCRYPTION_KEY nicht in .env gesetzt! Server wird beendet.');
-    process.exit(1);
-  }
-  console.warn('WARNUNG: TOTP_ENCRYPTION_KEY nicht gesetzt — TOTP-Secrets werden unverschlüsselt gespeichert.');
-  console.warn('         Setze TOTP_ENCRYPTION_KEY=<64 Hex-Zeichen> in .env für AES-256-GCM Verschlüsselung.');
-}
-
 const app = express();
-app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads', 'documents');
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// ── Middleware ────────────────────────────────────────────────────────────────
+// ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'"],
-      styleSrc:   ["'self'", "'unsafe-inline'"], // inline <style>-Blöcke in einigen Seiten
-      imgSrc:     ["'self'", "data:"],            // QR-Code als data:-URI
-      connectSrc: ["'self'"],
-      fontSrc:    ["'self'"],
-      objectSrc:  ["'none'"],
-      frameSrc:   ["'none'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      frameSrc: ["'none'"],
     },
   },
+  crossOriginEmbedderPolicy: false,
 }));
-app.use(express.json({ limit: '50kb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// K2: CSRF-Schutz via Custom-Header-Pattern
-// Browser kann diesen Header bei Cross-Origin-Requests ohne CORS-Preflight nicht setzen.
-// sameSite: 'strict' schützt zusätzlich.
 app.use((req, res, next) => {
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-    if (!req.headers['x-requested-with']) {
-      return res.status(403).json({ error: 'CSRF-Schutz: X-Requested-With Header fehlt' });
-    }
-  }
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !req.headers['x-requested-with'])
+    return res.status(403).json({ error: 'CSRF-Schutz: Header fehlt.' });
   next();
 });
-app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', (req, res) => res.redirect('/login.html'));
-
-// H7: Redis-Session-Store wenn REDIS_URL gesetzt, sonst FileStore (Fallback für lokale Entwicklung)
+// ── Session ───────────────────────────────────────────────────────────────────
 let sessionStore;
 if (process.env.REDIS_URL) {
-  const redisClient = createRedisClient({ url: process.env.REDIS_URL });
-  redisClient.connect().catch(err => {
-    console.error('Redis-Verbindung fehlgeschlagen:', err.message);
-    process.exit(1);
-  });
-  sessionStore = new RedisStore({ client: redisClient, ttl: 28800 });
-  console.log('✓ Session-Store: Redis');
+  const { createClient } = require('redis');
+  const RedisStore = require('connect-redis').default;
+  const redisClient = createClient({ url: process.env.REDIS_URL });
+  redisClient.connect().catch(console.error);
+  sessionStore = new RedisStore({ client: redisClient });
 } else {
-  sessionStore = new FileStore({ path: path.join(__dirname, 'data', 'sessions'), ttl: 28800 });
-  if (process.env.NODE_ENV === 'production') {
-    console.warn('WARNUNG: Session-Store ist FileStore. Setze REDIS_URL für verschlüsselten Redis-Store.');
-  }
+  const FileStore = require('session-file-store')(session);
+  const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+  sessionStore = new FileStore({ path: path.join(DATA_DIR, 'sessions'), ttl: 28800, retries: 0 });
 }
-
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET,
-  name: 'sid',  // Kein 'connect.sid' — verrät nicht den Tech-Stack
+  secret: process.env.SESSION_SECRET || 'change-me-in-production',
+  name: 'sid',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 8 * 60 * 60 * 1000  // 8 Stunden
-  }
+  cookie: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production', maxAge: 8 * 60 * 60 * 1000 },
 }));
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Zu viele Loginversuche. Bitte 15 Minuten warten.' },
-  keyGenerator: (req) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const email = (req.body && req.body.email) ? req.body.email.toLowerCase().trim() : '';
-    return `${ip}:${email}`;
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname).toLowerCase()),
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => ALLOWED_MIMES.includes(file.mimetype) ? cb(null, true) : cb(new Error('Nur JPG, PNG, WebP und PDF erlaubt.')),
+});
+
+// ── Mailer ────────────────────────────────────────────────────────────────────
+async function sendNotificationEmail(toEmail, toName, caseNumber, updateText) {
+  if (!process.env.SMTP_HOST) return { ok: false, reason: 'SMTP nicht konfiguriert' };
+  try {
+    const t = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+    await t.sendMail({
+      from: `"${process.env.SMTP_FROM_NAME || 'Felix Schindelhauer GmbH'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: toEmail,
+      subject: `Update zu Ihrem Schadensfall ${caseNumber}`,
+      text: `Guten Tag ${toName},\n\nIhr Schadensfall ${caseNumber} wurde aktualisiert:\n\n${updateText}\n\nMit freundlichen Gruessen\nFelix Schindelhauer GmbH - Continentale`,
+      html: `<p>Guten Tag ${toName},</p><p>Ihr Schadensfall <strong>${caseNumber}</strong> wurde aktualisiert:</p><blockquote style="border-left:3px solid #1d5ec7;padding:8px 16px;margin:16px 0;color:#333">${updateText}</blockquote><p>Mit freundlichen Gruessen<br><strong>Felix Schindelhauer GmbH &ndash; Continentale</strong></p>`,
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('E-Mail-Fehler:', err.message);
+    return { ok: false, reason: err.message };
   }
-});
-
-const twoFALimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Zu viele Versuche. Bitte 15 Minuten warten.' }
-});
-
-const contactLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 Stunde
-  max: 10,
-  message: { error: 'Zu viele Nachrichten. Bitte später erneut versuchen.' }
-});
-
-const PASSWORD_EXPIRY_MS = 90 * 24 * 60 * 60 * 1000;
-
-// H6: TOTP-Secret AES-256-GCM Verschlüsselung
-const TOTP_KEY = process.env.TOTP_ENCRYPTION_KEY;
-
-function encryptTotpSecret(plaintext) {
-  if (!TOTP_KEY) return plaintext; // Fallback: kein Key → klar speichern (warnt beim Start)
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(TOTP_KEY, 'hex'), iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return iv.toString('hex') + ':' + tag.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-function decryptTotpSecret(stored) {
-  if (!TOTP_KEY || !stored.includes(':')) return stored; // Plaintext oder kein Key
-  const [ivHex, tagHex, dataHex] = stored.split(':');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(TOTP_KEY, 'hex'), Buffer.from(ivHex, 'hex'));
-  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-  return decipher.update(Buffer.from(dataHex, 'hex')) + decipher.final('utf8');
-}
+// ── Rate limiters ─────────────────────────────────────────────────────────────
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+const postLimiter  = rateLimit({ windowMs: 60 * 1000, max: 30 });
 
-function validateEmail(email) {
-  if (!email || typeof email !== 'string') return 'E-Mail erforderlich';
-  if (email.length > 254) return 'E-Mail-Adresse zu lang';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Ungültige E-Mail-Adresse';
-  return null;
-}
-
-// H3: Password strength validation (min 12 chars, upper, lower, digit)
-function validatePasswordStrength(password) {
-  if (password.length < 12) return 'Passwort muss mindestens 12 Zeichen haben';
-  if (!/[A-Z]/.test(password)) return 'Passwort muss mindestens einen Großbuchstaben enthalten';
-  if (!/[a-z]/.test(password)) return 'Passwort muss mindestens einen Kleinbuchstaben enthalten';
-  if (!/[0-9]/.test(password)) return 'Passwort muss mindestens eine Zahl enthalten';
-  return null;
-}
-
-function buildPasswordFlags(user) {
-  const mustChange = !!user.must_change_password;
-  const ninetyDaysAgo = new Date(Date.now() - PASSWORD_EXPIRY_MS);
-  const pwChangedAt = user.password_changed_at ? new Date(user.password_changed_at) : null;
-  const expiryWarning = !mustChange && (!pwChangedAt || pwChangedAt < ninetyDaysAgo);
-  return {
-    requires_password_change: mustChange ? true : undefined,
-    password_expiry_warning: expiryWarning ? true : undefined
-  };
-}
-
-// ── Authenticated File Serving (K1: no public upload access) ─────────────────
-app.get('/uploads/contracts/:filename', requireLogin, async (req, res) => {
-  const filename = path.basename(req.params.filename);
-  const contract = await contracts.findOneAsync({ scan_image: filename, user_id: req.session.userId });
-  if (!contract && req.session.userRole !== 'admin') {
-    return res.status(403).json({ error: 'Kein Zugriff' });
-  }
-  res.sendFile(path.join(UPLOADS_DIR, 'contracts', filename));
-});
-
-// ── Auth Routes ───────────────────────────────────────────────────────────────
+// =============================================================================
+// AUTH
+// =============================================================================
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'E-Mail und Passwort erforderlich' });
-
+    if (!email || !password) return res.status(400).json({ error: 'E-Mail und Passwort erforderlich.' });
     const user = await users.findOneAsync({ email: email.toLowerCase().trim() });
-    if (!user) return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
-
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
-
-    await new Promise((resolve, reject) =>
-      req.session.regenerate(err => err ? reject(err) : resolve())
-    );
-
-    if (user.totp_enabled) {
-      req.session.twofa_pending = true;
-      req.session.twofa_userId = user._id;
-      req.session.twofa_expires = Date.now() + (5 * 60 * 1000);
-      return res.json({ ok: true, requires_2fa: true });
-    }
-
-    await users.updateAsync({ _id: user._id }, { $set: { last_login_at: new Date().toISOString() } });
-    await logActivity(user._id, 'login_success', null);
-
+    if (!user) return res.status(401).json({ error: 'Ungueltige Anmeldedaten.' });
+    if (!await bcrypt.compare(password, user.password_hash)) return res.status(401).json({ error: 'Ungueltige Anmeldedaten.' });
+    await new Promise((ok, fail) => req.session.regenerate(e => e ? fail(e) : ok()));
     req.session.userId = user._id;
-    req.session.userRole = user.role;
-    req.session.userEmail = user.email;
-
-    const flags = buildPasswordFlags(user);
-
-    if (user.role === 'admin' && !user.totp_enabled) {
-      return res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), requires_2fa_setup: true, ...flags });
-    }
-
-    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), ...flags });
-  } catch (err) {
-    console.error('Login-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    req.session.role = user.role;
+    await users.updateAsync({ _id: user._id }, { $set: { last_login_at: new Date().toISOString() } });
+    res.json({ ok: true, role: user.role, must_change_password: !!user.must_change_password });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
-});
+app.post('/api/auth/logout', requireLogin, (req, res) => req.session.destroy(() => res.json({ ok: true })));
 
 app.get('/api/auth/me', requireLogin, async (req, res) => {
   try {
     const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-    const { requires_password_change, password_expiry_warning } = buildPasswordFlags(user);
-    res.json({
-      id: user._id,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-      phone: user.phone || '',
-      consent_given: !!(user.terms_accepted_at || user.consent_given),
-      consent_analysis: !!user.consent_analysis,
-      totp_enabled: !!user.totp_enabled,
-      requires_password_change,
-      password_expiry_warning
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden.' });
+    const { password_hash, ...safe } = user;
+    res.json(safe);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-// Einwilligung – nur Analyse (Portalnutzung basiert auf Nutzungsverhältnis, kein Opt-in nötig)
-app.post('/api/auth/consent', requireLogin, async (req, res) => {
-  try {
-    const { consent_analysis } = req.body;
-    await users.updateAsync({ _id: req.session.userId }, { $set: {
-      terms_accepted_at: new Date().toISOString(),
-      consent_given: true,  // Kompatibilität mit bestehendem Login-Check
-      consent_analysis: !!consent_analysis,
-      consent_analysis_at: new Date().toISOString()
-    }});
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('Consent-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// Analyse-Einwilligung widerrufbar
-app.put('/api/auth/consent', requireLogin, async (req, res) => {
-  try {
-    const { consent_analysis } = req.body;
-    const update = {
-      consent_analysis: !!consent_analysis,
-      consent_analysis_at: new Date().toISOString()
-    };
-    await users.updateAsync({ _id: req.session.userId }, { $set: update });
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('Consent-Update-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.post('/api/auth/change-password', requireLogin, loginLimiter, async (req, res) => {
+app.post('/api/auth/change-password', requireLogin, postLimiter, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
-    if (!current_password || !new_password) return res.status(400).json({ error: 'Alle Felder erforderlich' });
-    const pwError = validatePasswordStrength(new_password);
-    if (pwError) return res.status(400).json({ error: pwError });
-
     const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-    const valid = await bcrypt.compare(current_password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Aktuelles Passwort falsch' });
-
-    const sameAsOld = await bcrypt.compare(new_password, user.password_hash);
-    if (sameAsOld) return res.status(400).json({ error: 'Das neue Passwort muss sich vom aktuellen unterscheiden' });
-
+    if (!await bcrypt.compare(current_password, user.password_hash)) return res.status(400).json({ error: 'Aktuelles Passwort falsch.' });
+    if (!new_password || new_password.length < 12) return res.status(400).json({ error: 'Mind. 12 Zeichen erforderlich.' });
+    if (!/[A-Z]/.test(new_password)) return res.status(400).json({ error: 'Grossbuchstabe erforderlich.' });
+    if (!/[0-9]/.test(new_password)) return res.status(400).json({ error: 'Ziffer erforderlich.' });
     const hash = await bcrypt.hash(new_password, 12);
-    await users.updateAsync({ _id: req.session.userId }, {
-      $set: { password_hash: hash, password_changed_at: new Date().toISOString() },
-      $unset: { must_change_password: true }
-    });
-    await logActivity(req.session.userId, 'password_changed', null);
+    await users.updateAsync({ _id: req.session.userId }, { $set: { password_hash: hash, must_change_password: false, password_changed_at: new Date().toISOString() } });
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-// Account-Löschung (nur für Kunden, mit Passwort-Bestätigung)
-app.delete('/api/auth/account', requireLogin, loginLimiter, async (req, res) => {
-  try {
-    const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-    if (user.role === 'admin') return res.status(403).json({ error: 'Admin-Konten können nicht selbst gelöscht werden' });
-
-    const { password } = req.body;
-    if (!password) return res.status(400).json({ error: 'Passwort erforderlich' });
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(403).json({ error: 'Passwort falsch' });
-
-    const userId = req.session.userId;
-
-    // Scan-Dateien löschen
-    const userContracts = await contracts.findAsync({ user_id: userId });
-    for (const c of userContracts) {
-      if (c.scan_image) {
-        fs.unlink(path.join(UPLOADS_DIR, 'contracts', c.scan_image), () => {});
-      }
-    }
-
-    await contracts.removeAsync({ user_id: userId }, { multi: true });
-    await messages.removeAsync({ user_id: userId }, { multi: true });
-    await activityLog.removeAsync({ user_id: userId }, { multi: true });
-    await appointments.removeAsync({ user_id: userId }, { multi: true });
-    await users.removeAsync({ _id: userId });
-
-    req.session.destroy(() => res.json({ ok: true }));
-  } catch (err) {
-    console.error('Account-Löschung-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// ── D1: Datenauskunft (Art. 15 DSGVO) ────────────────────────────────────────
-app.get('/api/auth/data-export', requireLogin, async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    const [user, userContracts, userMessages, userLog, userAppointments] = await Promise.all([
-      users.findOneAsync({ _id: userId }),
-      contracts.findAsync({ user_id: userId }),
-      messages.findAsync({ user_id: userId }),
-      activityLog.findAsync({ user_id: userId }),
-      appointments.findAsync({ user_id: userId })
-    ]);
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-
-    // Art. 15 DSGVO: alle gespeicherten Felder — keine internen Felder (password_hash, totp_secret)
-    const exportData = {
-      profile: {
-        email: user.email,
-        full_name: user.full_name,
-        phone: user.phone || '',
-        mobile: user.mobile || '',
-        birth_date: user.birth_date || '',
-        marital_status: user.marital_status || '',
-        spouse_name: user.spouse_name || '',
-        beruf: user.beruf || '',
-        berufsgruppe: user.berufsgruppe || '',
-        wohneigentum: user.wohneigentum || '',
-        gross_income: user.gross_income || '',
-        health_insurance_type: user.health_insurance_type || '',
-        health_insurance_provider: user.health_insurance_provider || '',
-        rente: user.rente || '',
-        minijob: user.minijob || '',
-        kindergeld: user.kindergeld || '',
-        andere_einkuenfte: user.andere_einkuenfte || '',
-        ausgaben_miete: user.ausgaben_miete || '',
-        ausgaben_nebenkosten: user.ausgaben_nebenkosten || '',
-        ausgaben_mobilitaet: user.ausgaben_mobilitaet || '',
-        created_at: user.created_at,
-        last_login_at: user.last_login_at || null,
-        totp_enabled: !!user.totp_enabled,
-        consent_analysis: !!user.consent_analysis,
-        consent_given_at: user.terms_accepted_at || user.consent_given_at || null
-      },
-      contracts: userContracts.map(({ _id, user_id, ...rest }) => rest),
-      messages: userMessages.map(({ _id, user_id, ...rest }) => rest),
-      activity_log: userLog.map(({ _id, user_id, ...rest }) => rest),
-      appointments: userAppointments.map(({ _id, user_id, ...rest }) => rest),
-      exported_at: new Date().toISOString()
-    };
-
-    const p = exportData.profile;
-    const fmt = v => (v === null || v === undefined || v === '') ? '–' : String(v);
-    const fmtDate = v => v ? new Date(v).toLocaleString('de-DE') : '–';
-    const hr = (title) => `\n${'='.repeat(60)}\n  ${title}\n${'='.repeat(60)}\n`;
-    const line = (label, value) => `  ${label.padEnd(30)} ${fmt(value)}\n`;
-
-    let txt = '';
-    txt += 'Datenschutz-Auskunft nach Art. 15 DSGVO\n';
-    txt += 'Felix Schindelhauer GmbH (Continentale)\n';
-    txt += `Erstellt am: ${fmtDate(exportData.exported_at)}\n`;
-
-    txt += hr('PROFIL');
-    txt += line('E-Mail', p.email);
-    txt += line('Name', p.full_name);
-    txt += line('Telefon', p.phone);
-    txt += line('Mobil', p.mobile);
-    txt += line('Geburtsdatum', p.birth_date);
-    txt += line('Familienstand', p.marital_status);
-    txt += line('Name Partner/in', p.spouse_name);
-    txt += line('Beruf', p.beruf);
-    txt += line('Berufsgruppe', p.berufsgruppe);
-    txt += line('Wohneigentum', p.wohneigentum);
-    txt += line('Nettoeinkommen (€)', p.gross_income);
-    txt += line('Krankenversicherungsart', p.health_insurance_type);
-    txt += line('Krankenversicherung', p.health_insurance_provider);
-    txt += line('Rente (€)', p.rente);
-    txt += line('Minijob (€)', p.minijob);
-    txt += line('Kindergeld (€)', p.kindergeld);
-    txt += line('Andere Einkünfte (€)', p.andere_einkuenfte);
-    txt += line('Miete (€)', p.ausgaben_miete);
-    txt += line('Nebenkosten (€)', p.ausgaben_nebenkosten);
-    txt += line('Mobilität (€)', p.ausgaben_mobilitaet);
-    txt += line('2FA aktiv', p.totp_enabled ? 'Ja' : 'Nein');
-    txt += line('Analyse-Einwilligung', p.consent_analysis ? 'Ja' : 'Nein');
-    txt += line('Konto erstellt', fmtDate(p.created_at));
-    txt += line('Letzter Login', fmtDate(p.last_login_at));
-    txt += line('Einwilligung erteilt am', fmtDate(p.consent_given_at));
-
-    txt += hr('VERTRÄGE');
-    if (exportData.contracts.length === 0) {
-      txt += '  Keine Verträge vorhanden.\n';
-    } else {
-      exportData.contracts.forEach((c, i) => {
-        txt += `\n  Vertrag ${i + 1}\n`;
-        Object.entries(c).forEach(([k, v]) => { txt += line('  ' + k, v); });
-      });
-    }
-
-    txt += hr('NACHRICHTEN');
-    if (exportData.messages.length === 0) {
-      txt += '  Keine Nachrichten vorhanden.\n';
-    } else {
-      exportData.messages.forEach((m, i) => {
-        txt += `\n  Nachricht ${i + 1}\n`;
-        txt += line('  Datum', fmtDate(m.created_at));
-        txt += line('  Von', m.sender_role === 'admin' ? 'Berater' : 'Ich');
-        txt += `  Text: ${fmt(m.text)}\n`;
-      });
-    }
-
-    txt += hr('TERMINE');
-    if (exportData.appointments.length === 0) {
-      txt += '  Keine Termine vorhanden.\n';
-    } else {
-      exportData.appointments.forEach((a, i) => {
-        txt += `\n  Termin ${i + 1}\n`;
-        txt += line('  Datum/Uhrzeit', fmtDate(a.datetime || a.date));
-        txt += line('  Betreff', a.subject || a.title);
-        txt += line('  Status', a.status);
-      });
-    }
-
-    txt += hr('AKTIVITÄTSPROTOKOLLE');
-    if (exportData.activity_log.length === 0) {
-      txt += '  Keine Einträge vorhanden.\n';
-    } else {
-      exportData.activity_log.forEach(entry => {
-        txt += `  ${fmtDate(entry.created_at)}  ${fmt(entry.type)}\n`;
-      });
-    }
-
-    txt += '\n' + '='.repeat(60) + '\n';
-
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="meine-daten.txt"');
-    res.send(txt);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// ── Two-Factor Authentication Routes ─────────────────────────────────────────
-
-app.get('/api/auth/2fa/status', (req, res) => {
-  res.json({ pending: !!req.session.twofa_pending });
-});
-
-app.get('/api/auth/2fa/setup', requireLogin, async (req, res) => {
-  try {
-    const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-
-    // H8: otpauth statt speakeasy
-    const secret = new OTPAuth.Secret();
-    const base32Secret = secret.base32;
-    const totp = new OTPAuth.TOTP({ issuer: 'Felix Schindelhauer GmbH', label: user.email, algorithm: 'SHA1', digits: 6, period: 30, secret });
-    const otpauthUrl = totp.toString();
-
-    // H6: verschlüsselt zwischenspeichern
-    await users.updateAsync({ _id: user._id }, { $set: {
-      totp_secret_temp: encryptTotpSecret(base32Secret),
-      totp_setup_pending: true
-    }});
-
-    const qr = await QRCode.toDataURL(otpauthUrl);
-    res.json({ qr, secret: base32Secret });
-  } catch (err) {
-    console.error('2FA Setup-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.post('/api/auth/2fa/confirm', requireLogin, twoFALimiter, async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Code erforderlich' });
-
-    const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user || !user.totp_setup_pending || !user.totp_secret_temp) {
-      return res.status(400).json({ error: '2FA-Setup nicht gestartet' });
-    }
-
-    // H8: otpauth; H6: entschlüsseln für Verifikation
-    const tempPlain = decryptTotpSecret(user.totp_secret_temp);
-    const confirmTotp = new OTPAuth.TOTP({ algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(tempPlain) });
-    const valid = confirmTotp.validate({ token: token.replace(/\s/g, ''), window: 1 }) !== null;
-
-    if (!valid) return res.status(401).json({ error: 'Ungültiger Code. Bitte erneut versuchen.' });
-
-    await users.updateAsync({ _id: user._id }, {
-      $set: {
-        totp_secret: user.totp_secret_temp, // bleibt verschlüsselt
-        totp_enabled: true,
-        totp_enabled_at: new Date().toISOString()
-      },
-      $unset: { totp_secret_temp: true, totp_setup_pending: true }
-    });
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('2FA Bestätigungs-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.post('/api/auth/2fa/verify', twoFALimiter, async (req, res) => {
-  try {
-    if (!req.session.twofa_pending || !req.session.twofa_userId) {
-      return res.status(401).json({ error: 'Keine ausstehende 2FA-Verifizierung' });
-    }
-
-    if (Date.now() > req.session.twofa_expires) {
-      req.session.destroy(() => {});
-      return res.status(401).json({ error: 'Sitzung abgelaufen. Bitte neu einloggen.' });
-    }
-
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Code erforderlich' });
-
-    const user = await users.findOneAsync({ _id: req.session.twofa_userId });
-    if (!user || !user.totp_enabled) return res.status(401).json({ error: 'Session ungültig' });
-
-    if (user.totp_last_used_token === token.replace(/\s/g, '')) {
-      return res.status(401).json({ error: 'Code bereits verwendet. Bitte warten Sie auf den nächsten Code.' });
-    }
-
-    // H8: otpauth; H6: entschlüsseln
-    const secretPlain = decryptTotpSecret(user.totp_secret);
-    const verifyTotp = new OTPAuth.TOTP({ algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(secretPlain) });
-    const valid = verifyTotp.validate({ token: token.replace(/\s/g, ''), window: 1 }) !== null;
-
-    if (!valid) return res.status(401).json({ error: 'Ungültiger Code.' });
-
-    await users.updateAsync({ _id: user._id }, { $set: {
-      totp_last_used_token: token.replace(/\s/g, ''),
-      last_login_at: new Date().toISOString()
-    }});
-
-    await new Promise((resolve, reject) =>
-      req.session.regenerate(err => err ? reject(err) : resolve())
-    );
-
-    req.session.userId = user._id;
-    req.session.userRole = user.role;
-    req.session.userEmail = user.email;
-
-    await logActivity(user._id, 'login_success_2fa', null);
-
-    const flags = buildPasswordFlags(user);
-    res.json({ ok: true, role: user.role, name: user.full_name, consent_given: !!(user.terms_accepted_at || user.consent_given), ...flags });
-  } catch (err) {
-    console.error('2FA Verify-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.post('/api/auth/2fa/disable', requireLogin, async (req, res) => {
-  try {
-    const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-
-    if (user.role === 'admin') {
-      return res.status(403).json({ error: 'Admins können 2FA nicht deaktivieren.' });
-    }
-
-    const { password } = req.body;
-    if (!password) return res.status(400).json({ error: 'Passwort erforderlich' });
-
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Passwort falsch' });
-
-    await users.updateAsync({ _id: user._id }, {
-      $set: { totp_enabled: false },
-      $unset: { totp_secret: true, totp_last_used_token: true, totp_enabled_at: true }
-    });
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('2FA Disable-Fehler:', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// ── Contract Routes ───────────────────────────────────────────────────────────
-app.get('/api/contracts', requireLogin, async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    const list = await contracts.findAsync({ user_id: userId }).sort({ created_at: -1 });
-    res.json(list);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-const VALID_CATEGORIES = ['insurance', 'subscription', 'other'];
-const VALID_CYCLES = ['monthly', 'quarterly', 'biannual', 'yearly', 'once'];
-
-app.post('/api/contracts', requireLogin, async (req, res) => {
-  try {
-    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
-            cancellation_deadline, renewal_date, is_own_insurer } = req.body;
-    if (!category || !name || premium_amount === undefined || premium_amount === null || premium_amount === '' || !premium_cycle) {
-      return res.status(400).json({ error: 'Pflichtfelder fehlen' });
-    }
-    if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: 'Ungültige Kategorie' });
-    if (!VALID_CYCLES.includes(premium_cycle)) return res.status(400).json({ error: 'Ungültiger Zahlungszyklus' });
-
-    const doc = await contracts.insertAsync({
-      user_id: req.session.userId,
-      category,
-      name: name.trim(),
-      provider: provider ? provider.trim() : '',
-      description: description ? description.trim() : '',
-      premium_amount: parseFloat(premium_amount),
-      premium_cycle,
-      start_date: start_date || '',
-      end_date: end_date || '',
-      details: (details && typeof details === 'object' && JSON.stringify(details).length <= 5000) ? details : {},
-      is_own_insurer: category === 'insurance' ? !!is_own_insurer : false,
-      cancellation_deadline: cancellation_deadline || '',
-      renewal_date: renewal_date || '',
-      added_by_role: 'customer',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
-    await logActivity(req.session.userId, 'contract_added', null);
-    res.status(201).json(doc);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.put('/api/contracts/:id', requireLogin, async (req, res) => {
-  try {
-    const contract = await contracts.findOneAsync({ _id: req.params.id, user_id: req.session.userId });
-    if (!contract) return res.status(404).json({ error: 'Nicht gefunden' });
-    if (contract.added_by_role === 'admin') return res.status(403).json({ error: 'Agentur-Verträge können nicht bearbeitet werden' });
-
-    const { category, name, provider, description, premium_amount, premium_cycle, start_date, end_date, details,
-            cancellation_deadline, renewal_date, is_own_insurer } = req.body;
-    if (!category || !name || !premium_cycle) return res.status(400).json({ error: 'Pflichtfelder fehlen' });
-    if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: 'Ungültige Kategorie' });
-    if (!VALID_CYCLES.includes(premium_cycle)) return res.status(400).json({ error: 'Ungültiger Zahlungszyklus' });
-
-    await contracts.updateAsync({ _id: req.params.id }, {
-      $set: {
-        category, name: name.trim(),
-        provider: provider ? provider.trim() : '',
-        description: description ? description.trim() : '',
-        premium_amount: parseFloat(premium_amount),
-        premium_cycle,
-        start_date: start_date || '',
-        end_date: end_date || '',
-        details: (details && typeof details === 'object' && JSON.stringify(details).length <= 5000) ? details : {},
-        is_own_insurer: category === 'insurance' ? !!is_own_insurer : false,
-        cancellation_deadline: cancellation_deadline || '',
-        renewal_date: renewal_date || '',
-        updated_at: new Date().toISOString()
-      }
-    });
-    const updated = await contracts.findOneAsync({ _id: req.params.id });
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.delete('/api/contracts/:id', requireLogin, async (req, res) => {
-  try {
-    const contract = await contracts.findOneAsync({ _id: req.params.id, user_id: req.session.userId });
-    if (!contract) return res.status(404).json({ error: 'Nicht gefunden' });
-    if (contract.added_by_role === 'admin') return res.status(403).json({ error: 'Agentur-Verträge können nicht gelöscht werden' });
-
-    if (contract.scan_image) {
-      fs.unlink(path.join(UPLOADS_DIR, 'contracts', contract.scan_image), () => {});
-    }
-    await contracts.removeAsync({ _id: req.params.id });
-    await logActivity(req.session.userId, 'contract_deleted', null);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// ── Customer Contract Scan Upload ─────────────────────────────────────────────
-app.post('/api/contracts/:id/scan', requireLogin,
-  (req, res, next) => { uploadScan.single('image')(req, res, next); },
-  async (req, res) => {
-    try {
-      if (!req.file) return res.status(400).json({ error: 'Kein Bild hochgeladen' });
-      const contract = await contracts.findOneAsync({ _id: req.params.id, user_id: req.session.userId });
-      if (!contract) return res.status(404).json({ error: 'Vertrag nicht gefunden' });
-      if (contract.scan_image) {
-        fs.unlink(path.join(UPLOADS_DIR, 'contracts', contract.scan_image), () => {});
-      }
-      await contracts.updateAsync({ _id: req.params.id, user_id: req.session.userId }, { $set: { scan_image: req.file.filename } });
-      res.json({ ok: true, filename: req.file.filename });
-    } catch (err) {
-      res.status(500).json({ error: 'Serverfehler' });
-    }
-  }
-);
-
-// ── Contact Routes ────────────────────────────────────────────────────────────
-const VALID_REQUEST_TYPES = ['message', 'callback', 'offer', 'complaint', 'other'];
-
-app.post('/api/contact', requireLogin, contactLimiter, async (req, res) => {
-  try {
-    const { subject, message, request_type, callback_time } = req.body;
-    if (!subject || !message) return res.status(400).json({ error: 'Betreff und Nachricht erforderlich' });
-    if (subject.length > 200) return res.status(400).json({ error: 'Betreff zu lang (max. 200 Zeichen)' });
-    if (message.length > 5000) return res.status(400).json({ error: 'Nachricht zu lang (max. 5000 Zeichen)' });
-    if (callback_time && callback_time.length > 200) return res.status(400).json({ error: 'Rückrufzeit zu lang (max. 200 Zeichen)' });
-
-    const safeRequestType = VALID_REQUEST_TYPES.includes(request_type) ? request_type : 'message';
-
-    await messages.insertAsync({
-      user_id: req.session.userId,
-      subject: subject.trim(),
-      message: message.trim(),
-      request_type: safeRequestType,
-      callback_time: callback_time ? callback_time.trim() : '',
-      status: 'new',
-      created_at: new Date().toISOString()
-    });
-    await logActivity(req.session.userId, 'message_sent', null);
-    res.status(201).json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// ── Profile Routes ────────────────────────────────────────────────────────────
+// =============================================================================
+// PROFILE
+// =============================================================================
 app.get('/api/profile', requireLogin, async (req, res) => {
   try {
     const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-    res.json({
-      email: user.email,
-      full_name: user.full_name || '',
-      phone: user.phone || '',
-      mobile: user.mobile || '',
-      birth_date: user.birth_date || '',
-      marital_status: user.marital_status || '',
-      spouse_name: user.spouse_name || '',
-      health_insurance_type: user.health_insurance_type || '',
-      health_insurance_provider: user.health_insurance_provider || '',
-      gross_income: user.gross_income || '',
-      beruf: user.beruf || '',
-      berufsgruppe: user.berufsgruppe || '',
-      wohneigentum: user.wohneigentum || '',
-      rente_aktiv:                user.rente_aktiv || '',
-      rente:                      user.rente || '',
-      minijob_aktiv:              user.minijob_aktiv || '',
-      minijob:                    user.minijob || '',
-      kindergeld_aktiv:           user.kindergeld_aktiv || '',
-      kindergeld:                 user.kindergeld || '',
-      andere_einkuenfte_aktiv:    user.andere_einkuenfte_aktiv || '',
-      andere_einkuenfte:          user.andere_einkuenfte || '',
-      ausgaben_miete:             user.ausgaben_miete || '',
-      ausgaben_nebenkosten:       user.ausgaben_nebenkosten || '',
-      ausgaben_mobilitaet:        user.ausgaben_mobilitaet || '',
-      haushalt_wizard_done:       user.haushalt_wizard_done || false
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    const { password_hash, ...safe } = user;
+    res.json(safe);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-app.put('/api/profile', requireLogin, async (req, res) => {
+app.put('/api/profile', requireLogin, postLimiter, async (req, res) => {
   try {
-    // D3: Nur Felder die tatsächlich für Empfehlungen verwendet werden (Datensparsamkeit Art. 5 DSGVO)
-    const NUMERIC_FIELDS = new Set([
-      'gross_income',
-      'rente', 'minijob', 'kindergeld', 'andere_einkuenfte',
-      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet'
-    ]);
-    const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-
-    const allowed = ['full_name', 'phone', 'mobile', 'birth_date', 'marital_status',
-      'spouse_name', 'health_insurance_type', 'health_insurance_provider',
-      'gross_income', 'beruf', 'berufsgruppe', 'wohneigentum',
-      'rente_aktiv', 'rente', 'minijob_aktiv', 'minijob',
-      'kindergeld_aktiv', 'kindergeld', 'andere_einkuenfte_aktiv', 'andere_einkuenfte',
-      'ausgaben_miete', 'ausgaben_nebenkosten', 'ausgaben_mobilitaet',
-      'haushalt_wizard_done'];
     const update = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) {
-        update[key] = NUMERIC_FIELDS.has(key)
-          ? (req.body[key] === '' ? '' : parseFloat(req.body[key]))
-          : String(req.body[key]).trim();
-      }
+    for (const key of ['full_name', 'phone', 'mobile', 'notification_preference']) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
     }
+    if (update.notification_preference && !['email', 'whatsapp'].includes(update.notification_preference))
+      return res.status(400).json({ error: 'Ungueltige Benachrichtigungspraeferenz.' });
     await users.updateAsync({ _id: req.session.userId }, { $set: update });
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-// ── Recommendations Route ─────────────────────────────────────────────────────
-function generateRecommendations(profile, contractList) {
-  const recs = [];
-  const names = contractList.map(c => c.name.toLowerCase());
-  const has = (...kws) => kws.some(kw => names.some(n => n.includes(kw)));
+// =============================================================================
+// CASES
+// =============================================================================
+const SPARTEN = ['hausrat', 'wohngebaeude', 'haftpflicht', 'kfz', 'glas'];
 
-  // Todesfallabsicherung
-  if (!has('risikoleben', 'lebensversicherung')) {
-    const isMarried = profile.marital_status === 'verheiratet' || profile.spouse_name;
-    recs.push({ type: 'Risikolebensversicherung', priority: 'hoch',
-      reason: isMarried
-        ? 'Typisch für Familien mit gemeinsamen Verpflichtungen: Eine Risikolebensversicherung könnte sinnvoll sein, um Hinterbliebene finanziell abzusichern.'
-        : 'Möglicher Bedarf: Eine Risikolebensversicherung könnte zur Absicherung von Hinterbliebenen oder laufenden Krediten sinnvoll sein.' });
-  }
-
-  // Arbeitskraftabsicherung – BU
-  if (profile.gross_income > 0 && !has('berufsunfähigkeit', 'berufsunfähigkeits')) {
-    recs.push({ type: 'Berufsunfähigkeitsversicherung', priority: 'hoch',
-      reason: 'Möglicher Bedarf: Die staatliche Absicherung bei Berufsunfähigkeit ist in vielen Situationen lückenhaft. Eine private BU-Versicherung könnte zur Prüfung empfohlen werden.' });
-  }
-
-  // Krankentagegeld
-  if (profile.health_insurance_type === 'gkv' && !has('krankentagegeld', 'krankentage')) {
-    recs.push({ type: 'Krankentagegeld', priority: 'hoch',
-      reason: 'Typisch für GKV-Versicherte: Nach 6 Wochen Krankheit sinkt das Krankengeld. Eine Krankentagegeldversicherung könnte diese Lücke schließen.' });
-  }
-
-  // Haftpflicht
-  if (!has('haftpflicht')) {
-    recs.push({ type: 'Privathaftpflichtversicherung', priority: 'hoch',
-      reason: 'Häufig empfohlen: Eine Privathaftpflichtversicherung könnte bei Schäden im Alltag sinnvoll sein und ist typischerweise günstig.' });
-  }
-
-  // Hausrat
-  if (!has('hausrat')) {
-    recs.push({ type: 'Hausratversicherung', priority: 'mittel',
-      reason: 'Möglicher Bedarf: Eine Hausratversicherung könnte den Hausrat bei Feuer, Einbruch oder Wasserschäden absichern.' });
-  }
-
-  // Rechtsschutz
-  if (!has('rechtsschutz')) {
-    recs.push({ type: 'Rechtsschutzversicherung', priority: 'niedrig',
-      reason: 'Zur Prüfung empfohlen: Eine Rechtsschutzversicherung könnte bei Anwalts- und Gerichtskosten im Alltag, Beruf oder Verkehr helfen.' });
-  }
-
-  // Wohneigentum
-  const isOwner = profile.wohneigentum === 'eigentuemer-haus' || profile.wohneigentum === 'eigentuemer-wohnung';
-  if (isOwner && !has('gebäude', 'gebaeude', 'wohngebäude')) {
-    recs.push({ type: 'Gebäudeversicherung', priority: 'hoch',
-      reason: 'Typisch für Eigentümer: Eine Gebäudeversicherung könnte bei Schäden durch Feuer, Sturm oder Leitungswasser sinnvoll sein.' });
-  }
-  if (isOwner && !has('grundbesitzer', 'haus- und grund', 'hauseigentümer')) {
-    recs.push({ type: 'Haus- und Grundbesitzerhaftpflicht', priority: 'hoch',
-      reason: 'Möglicher Bedarf für Eigentümer: Diese Versicherung könnte bei Haftungsansprüchen Dritter auf dem eigenen Grundstück sinnvoll sein.' });
-  }
-
-  return recs;
-}
-
-app.get('/api/recommendations', requireLogin, async (req, res) => {
+app.get('/api/cases', requireLogin, async (req, res) => {
   try {
-    const user = await users.findOneAsync({ _id: req.session.userId });
-    if (!user) return res.status(401).json({ error: 'Session ungültig' });
-
-    if (!user.consent_analysis) {
-      return res.json({ recommendations: [], profile_complete: false, consent_required: true });
+    const query = req.session.role === 'admin' ? {} : { user_id: req.session.userId };
+    if (req.query.sparte && SPARTEN.includes(req.query.sparte)) query.sparte = req.query.sparte;
+    if (req.query.status) query.status = req.query.status;
+    let result = await cases.findAsync(query);
+    result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (req.session.role === 'admin') {
+      const userIds = [...new Set(result.map(c => c.user_id))];
+      const ul = await users.findAsync({ _id: { $in: userIds } });
+      const um = Object.fromEntries(ul.map(u => [u._id, u.full_name]));
+      result = result.map(c => ({ ...c, customer_name: um[c.user_id] || '-' }));
     }
-
-    const contractList = await contracts.findAsync({ user_id: req.session.userId });
-    const profileComplete = !!(user.health_insurance_type || user.gross_income || user.marital_status);
-    const recs = generateRecommendations(user, contractList);
-    res.json({ recommendations: recs, profile_complete: profileComplete });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    const caseIds = result.map(c => c._id);
+    const unreadField = req.session.role === 'admin' ? 'read_by_admin' : 'read_by_customer';
+    const unread = await messages.findAsync({ case_id: { $in: caseIds }, [unreadField]: false });
+    const unreadMap = {};
+    for (const m of unread) unreadMap[m.case_id] = (unreadMap[m.case_id] || 0) + 1;
+    result = result.map(c => ({ ...c, unread_messages: unreadMap[c._id] || 0 }));
+    res.json(result);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-// ── Activity Log Helper ───────────────────────────────────────────────────────
-async function logActivity(userId, type, _description) {
+app.post('/api/cases', requireLogin, postLimiter, async (req, res) => {
   try {
-    await activityLog.insertAsync({ user_id: userId, type, created_at: new Date().toISOString() });
-  } catch (e) {}
-}
-
-// ── Settings Routes ───────────────────────────────────────────────────────────
-// D8: Bewusst ohne requireLogin — Agentur-Daten werden auf der Login-Seite angezeigt (kein Login möglich ohne sie).
-// Enthält nur öffentliche Kontaktdaten (Name, Telefon, E-Mail, Öffnungszeiten).
-app.get('/api/settings', async (req, res) => {
-  try {
-    const s = await settings.findOneAsync({});
-    res.json(s || {});
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    const { sparte, title, description, damage_date } = req.body;
+    if (!SPARTEN.includes(sparte)) return res.status(400).json({ error: 'Ungueltige Sparte.' });
+    if (!title || title.trim().length < 3) return res.status(400).json({ error: 'Titel zu kurz (mind. 3 Zeichen).' });
+    if (!damage_date) return res.status(400).json({ error: 'Schadensdatum fehlt.' });
+    const case_number = await getNextCaseNumber();
+    const now = new Date().toISOString();
+    const c = await cases.insertAsync({ user_id: req.session.userId, case_number, sparte, title: title.trim(), description: (description || '').trim(), damage_date, status: 'offen', created_at: now, updated_at: now });
+    await timeline.insertAsync({ case_id: c._id, author_role: 'customer', text: 'Schadensfall wurde gemeldet.', created_at: now });
+    res.status(201).json(c);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-app.put('/api/admin/settings', requireAdmin, async (req, res) => {
+app.get('/api/cases/:id', requireLogin, async (req, res) => {
   try {
-    const allowed = ['agency_name', 'address', 'phone', 'email', 'opening_hours', 'whatsapp'];
-    const update = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) update[key] = String(req.body[key]);
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    if (req.session.role === 'admin') {
+      const cu = await users.findOneAsync({ _id: c.user_id });
+      c.customer_name = cu ? cu.full_name : '-';
+      c.customer_email = cu ? cu.email : '-';
+      c.customer_phone = cu ? (cu.mobile || cu.phone || '') : '';
+      c.customer_notification = cu ? (cu.notification_preference || 'email') : 'email';
     }
-    await settings.updateAsync({}, { $set: update }, { upsert: true });
-    const updated = await settings.findOneAsync({});
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    res.json(c);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-// ── Admin-Account Verwaltung ───────────────────────────────────────────────────
-app.get('/api/admin/admins', requireAdmin, async (req, res) => {
+app.patch('/api/cases/:id/status', requireAdmin, postLimiter, async (req, res) => {
   try {
-    const admins = await users.findAsync({ role: 'admin' }).sort({ created_at: 1 });
-    res.json(admins.map(a => ({ id: a._id, email: a.email, full_name: a.full_name, created_at: a.created_at })));
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.post('/api/admin/admins', requireAdmin, async (req, res) => {
-  try {
-    const { email, full_name, password } = req.body;
-    if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
-    const emailError = validateEmail(email);
-    if (emailError) return res.status(400).json({ error: emailError });
-    const pwError = validatePasswordStrength(password);
-    if (pwError) return res.status(400).json({ error: pwError });
-    const hash = await bcrypt.hash(password, 12);
-    const admin = await users.insertAsync({
-      email: email.toLowerCase().trim(),
-      password_hash: hash,
-      full_name: full_name.trim(),
-      role: 'admin',
-      must_change_password: true,
-      created_at: new Date().toISOString()
-    });
-    res.status(201).json({ id: admin._id, email: admin.email, full_name: admin.full_name });
-  } catch (err) {
-    if (err.errorType === 'uniqueViolated') return res.status(409).json({ error: 'E-Mail bereits vergeben' });
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.delete('/api/admin/admins/:id', requireAdmin, async (req, res) => {
-  try {
-    if (req.params.id === req.session.userId) return res.status(400).json({ error: 'Du kannst deinen eigenen Account nicht löschen' });
-    const admin = await users.findOneAsync({ _id: req.params.id, role: 'admin' });
-    if (!admin) return res.status(404).json({ error: 'Admin nicht gefunden' });
-    await users.removeAsync({ _id: req.params.id });
+    const { status } = req.body;
+    if (!['offen', 'in_bearbeitung', 'abgeschlossen'].includes(status)) return res.status(400).json({ error: 'Ungueltiger Status.' });
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    await cases.updateAsync({ _id: req.params.id }, { $set: { status, updated_at: new Date().toISOString() } });
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+// =============================================================================
+// TIMELINE
+// =============================================================================
+app.get('/api/cases/:id/timeline', requireLogin, async (req, res) => {
+  try {
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const entries = await timeline.findAsync({ case_id: req.params.id });
+    entries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    res.json(entries);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+app.post('/api/cases/:id/timeline', requireLogin, postLimiter, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || text.trim().length < 2) return res.status(400).json({ error: 'Text zu kurz.' });
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const entry = await timeline.insertAsync({ case_id: req.params.id, author_role: req.session.role, text: text.trim(), created_at: new Date().toISOString() });
+    await cases.updateAsync({ _id: req.params.id }, { $set: { updated_at: new Date().toISOString() } });
+    res.status(201).json(entry);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+// =============================================================================
+// DOCUMENTS
+// =============================================================================
+app.get('/api/cases/:id/documents', requireLogin, async (req, res) => {
+  try {
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const docs = await documents.findAsync({ case_id: req.params.id });
+    docs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    res.json(docs);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+app.post('/api/cases/:id/documents', requireLogin, postLimiter, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) { try { fs.unlinkSync(req.file.path); } catch {} return res.status(404).json({ error: 'Fall nicht gefunden.' }); }
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) { try { fs.unlinkSync(req.file.path); } catch {} return res.status(403).json({ error: 'Kein Zugriff.' }); }
+    const doc_type = (req.body && req.body.doc_type) ? req.body.doc_type : 'Sonstiges';
+    const doc = await documents.insertAsync({ case_id: req.params.id, uploaded_by_role: req.session.role, filename: req.file.filename, original_name: req.file.originalname, mimetype: req.file.mimetype, doc_type, created_at: new Date().toISOString() });
+    res.status(201).json(doc);
   } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
+    if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
+    res.status(500).json({ error: err.message || 'Serverfehler.' });
   }
 });
 
-// ── Admin Routes – nur Metadaten ──────────────────────────────────────────────
+app.patch('/api/timeline/:entryId', requireAdmin, postLimiter, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || text.trim().length < 2) return res.status(400).json({ error: 'Text zu kurz.' });
+    const entry = await timeline.findOneAsync({ _id: req.params.entryId });
+    if (!entry) return res.status(404).json({ error: 'Eintrag nicht gefunden.' });
+    await timeline.updateAsync({ _id: req.params.entryId }, { $set: { text: text.trim(), edited_at: new Date().toISOString() } });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+app.get('/uploads/documents/:filename', requireLogin, (req, res) => {
+  const filePath = path.join(UPLOADS_DIR, path.basename(req.params.filename));
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Datei nicht gefunden.' });
+  res.sendFile(filePath);
+});
+
+app.delete('/api/documents/:docId', requireLogin, postLimiter, async (req, res) => {
+  try {
+    const doc = await documents.findOneAsync({ _id: req.params.docId });
+    if (!doc) return res.status(404).json({ error: 'Dokument nicht gefunden.' });
+    const c = await cases.findOneAsync({ _id: doc.case_id });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const fp = path.join(UPLOADS_DIR, doc.filename);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    await documents.removeAsync({ _id: req.params.docId });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+app.get('/api/cases/:id/messages', requireLogin, async (req, res) => {
+  try {
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const msgs = await messages.findAsync({ case_id: req.params.id });
+    msgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const field = req.session.role === 'admin' ? 'read_by_admin' : 'read_by_customer';
+    await messages.updateAsync({ case_id: req.params.id, [field]: false }, { $set: { [field]: true } }, { multi: true });
+    res.json(msgs);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+app.post('/api/cases/:id/messages', requireLogin, postLimiter, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || text.trim().length < 2) return res.status(400).json({ error: 'Nachricht zu kurz.' });
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    if (req.session.role !== 'admin' && c.user_id !== req.session.userId) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const user = await users.findOneAsync({ _id: req.session.userId });
+    const msg = await messages.insertAsync({
+      case_id: req.params.id,
+      author_id: req.session.userId,
+      author_role: req.session.role,
+      author_name: user ? user.full_name : '-',
+      text: text.trim(),
+      read_by_admin: req.session.role === 'admin',
+      read_by_customer: req.session.role === 'customer',
+      created_at: new Date().toISOString(),
+    });
+    await cases.updateAsync({ _id: req.params.id }, { $set: { updated_at: new Date().toISOString() } });
+    res.status(201).json(msg);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+// =============================================================================
+// NOTIFICATION
+// =============================================================================
+app.post('/api/cases/:id/notify', requireAdmin, postLimiter, async (req, res) => {
+  try {
+    const { update_text } = req.body;
+    const c = await cases.findOneAsync({ _id: req.params.id });
+    if (!c) return res.status(404).json({ error: 'Fall nicht gefunden.' });
+    const customer = await users.findOneAsync({ _id: c.user_id });
+    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    const pref = customer.notification_preference || 'email';
+    if (pref === 'whatsapp') {
+      const phone = (customer.mobile || customer.phone || '').replace(/\D/g, '');
+      const waPhone = phone.startsWith('0') ? '49' + phone.slice(1) : phone;
+      const text = encodeURIComponent('Hallo ' + customer.full_name + ', Ihr Schadensfall ' + c.case_number + ' wurde aktualisiert: ' + (update_text || 'Bitte schauen Sie ins Portal.'));
+      return res.json({ ok: true, method: 'whatsapp', url: 'https://wa.me/' + waPhone + '?text=' + text });
+    }
+    const result = await sendNotificationEmail(customer.email, customer.full_name, c.case_number, update_text || 'Ihr Fall wurde aktualisiert.');
+    res.json({ ok: result.ok, method: 'email', reason: result.reason });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Serverfehler.' }); }
+});
+
+// =============================================================================
+// ADMIN
+// =============================================================================
 app.get('/api/admin/customers', requireAdmin, async (req, res) => {
   try {
-    await logActivity(req.session.userId, 'admin_customer_list_viewed', null);
-    const customerList = await users.findAsync({ role: 'customer' }).sort({ created_at: -1 });
-    const result = customerList.map(c => ({
-      id: c._id,
-      email: c.email,
-      full_name: c.full_name,
-      created_at: c.created_at,
-      last_login_at: c.last_login_at || null,
-      consent_analysis: !!c.consent_analysis
-    }));
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    const list = await users.findAsync({ role: 'customer' });
+    const safe = list.map(({ password_hash, ...u }) => u);
+    safe.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    res.json(safe);
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-app.post('/api/admin/customers', requireAdmin, async (req, res) => {
+app.post('/api/admin/customers', requireAdmin, postLimiter, async (req, res) => {
   try {
-    const { email, full_name, password } = req.body;
-    if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich' });
-    const emailError = validateEmail(email);
-    if (emailError) return res.status(400).json({ error: emailError });
-    const pwError = validatePasswordStrength(password);
-    if (pwError) return res.status(400).json({ error: pwError });
-
+    const { email, full_name, password, phone, mobile, notification_preference } = req.body;
+    if (!email || !full_name || !password) return res.status(400).json({ error: 'E-Mail, Name und Passwort erforderlich.' });
+    if (password.length < 12) return res.status(400).json({ error: 'Passwort muss mind. 12 Zeichen haben.' });
     const hash = await bcrypt.hash(password, 12);
     const user = await users.insertAsync({
       email: email.toLowerCase().trim(),
       password_hash: hash,
       full_name: full_name.trim(),
+      phone: phone || '',
+      mobile: mobile || '',
       role: 'customer',
+      notification_preference: notification_preference || 'email',
       must_change_password: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     });
-    await logActivity(user._id, 'customer_created', null);
-    res.status(201).json({ id: user._id, email: user.email, full_name: user.full_name });
+    const { password_hash, ...safe } = user;
+    res.status(201).json(safe);
   } catch (err) {
-    if (err.errorType === 'uniqueViolated') return res.status(409).json({ error: 'E-Mail bereits vergeben' });
-    res.status(500).json({ error: 'Serverfehler' });
+    if (err.errorType === 'uniqueViolated') return res.status(409).json({ error: 'E-Mail bereits vergeben.' });
+    res.status(500).json({ error: 'Serverfehler.' });
   }
 });
 
-app.delete('/api/admin/customers/:id', requireAdmin, async (req, res) => {
+app.put('/api/admin/customers/:id/password', requireAdmin, postLimiter, async (req, res) => {
   try {
-    const user = await users.findOneAsync({ _id: req.params.id, role: 'customer' });
-    if (!user) return res.status(404).json({ error: 'Nicht gefunden' });
+    const { password } = req.body;
+    if (!password || password.length < 12) return res.status(400).json({ error: 'Passwort muss mind. 12 Zeichen haben.' });
+    const hash = await bcrypt.hash(password, 12);
+    await users.updateAsync({ _id: req.params.id }, { $set: { password_hash: hash, must_change_password: true } });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
+});
 
-    // Scan-Dateien löschen
-    const userContracts = await contracts.findAsync({ user_id: req.params.id });
-    for (const c of userContracts) {
-      if (c.scan_image) {
-        fs.unlink(path.join(UPLOADS_DIR, 'contracts', c.scan_image), () => {});
-      }
+app.delete('/api/admin/customers/:id', requireAdmin, postLimiter, async (req, res) => {
+  try {
+    const user = await users.findOneAsync({ _id: req.params.id });
+    if (!user || user.role !== 'customer') return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+    const userCases = await cases.findAsync({ user_id: req.params.id });
+    for (const c of userCases) {
+      const docs = await documents.findAsync({ case_id: c._id });
+      for (const doc of docs) { const fp = path.join(UPLOADS_DIR, doc.filename); if (fs.existsSync(fp)) fs.unlinkSync(fp); }
+      await documents.removeAsync({ case_id: c._id }, { multi: true });
+      await timeline.removeAsync({ case_id: c._id }, { multi: true });
+      await messages.removeAsync({ case_id: c._id }, { multi: true });
     }
-
+    await cases.removeAsync({ user_id: req.params.id }, { multi: true });
     await users.removeAsync({ _id: req.params.id });
-    await contracts.removeAsync({ user_id: req.params.id }, { multi: true });
-    await messages.removeAsync({ user_id: req.params.id }, { multi: true });
-    await activityLog.removeAsync({ user_id: req.params.id }, { multi: true });
-    await appointments.removeAsync({ user_id: req.params.id }, { multi: true });
-
-    await logActivity(req.session.userId, 'admin_customer_deleted', null);
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-// ── Admin Messages ────────────────────────────────────────────────────────────
-app.get('/api/admin/messages', requireAdmin, async (req, res) => {
-  try {
-    await logActivity(req.session.userId, 'admin_messages_viewed', null);
-    const msgs = await messages.findAsync({}).sort({ created_at: -1 });
-    const result = await Promise.all(msgs.map(async m => {
-      const user = await users.findOneAsync({ _id: m.user_id });
-      return { ...m, customer_name: user ? user.full_name : 'Unbekannt', customer_email: user ? user.email : '' };
-    }));
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+app.get('/api/settings', async (req, res) => {
+  try { res.json(await settings.findOneAsync({}) || {}); }
+  catch (err) { res.status(500).json({ error: 'Serverfehler.' }); }
 });
 
-app.patch('/api/admin/messages/:id/read', requireAdmin, async (req, res) => {
-  try {
-    await messages.updateAsync({ _id: req.params.id }, { $set: { status: 'read' } });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+// ── SPA fallback ──────────────────────────────────────────────────────────────
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return res.status(404).json({ error: 'Nicht gefunden.' });
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
-
-app.get('/api/admin/messages/:userId', requireAdmin, async (req, res) => {
-  try {
-    const list = await messages.findAsync({ user_id: req.params.userId }).sort({ created_at: -1 });
-    res.json(list);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// ── Appointments Routes ───────────────────────────────────────────────────────
-app.get('/api/admin/appointments', requireAdmin, async (req, res) => {
-  try {
-    const { month } = req.query; // YYYY-MM
-    let query = {};
-    if (month) {
-      if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: 'Ungültiges Monatsformat (YYYY-MM)' });
-      query = { date: { $regex: new RegExp('^' + month) } };
-    }
-    const list = await appointments.findAsync(query).sort({ date: 1, time: 1 });
-    res.json(list);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.post('/api/admin/appointments', requireAdmin, async (req, res) => {
-  try {
-    const { title, date, time, notes } = req.body;
-    if (!title || !date) return res.status(400).json({ error: 'Titel und Datum erforderlich' });
-    if (title.length > 200) return res.status(400).json({ error: 'Titel zu lang (max. 200 Zeichen)' });
-    if (notes && notes.length > 2000) return res.status(400).json({ error: 'Notizen zu lang (max. 2000 Zeichen)' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Ungültiges Datumsformat (YYYY-MM-DD)' });
-    if (time && !/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Ungültiges Zeitformat (HH:MM)' });
-    const doc = await appointments.insertAsync({
-      title:      title.trim(),
-      date:       date,
-      time:       time || '',
-      notes:      notes ? notes.trim() : '',
-      created_at: new Date().toISOString()
-    });
-    res.status(201).json(doc);
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-app.delete('/api/admin/appointments/:id', requireAdmin, async (req, res) => {
-  try {
-    const appt = await appointments.findOneAsync({ _id: req.params.id });
-    if (!appt) return res.status(404).json({ error: 'Nicht gefunden' });
-    await appointments.removeAsync({ _id: req.params.id });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// H6: Bestehende Plaintext TOTP-Secrets beim Start verschlüsseln
-async function migrateTotpSecrets() {
-  if (!TOTP_KEY) return; // Kein Key → nichts zu tun
-  try {
-    const usersWithTotp = await users.findAsync({ totp_enabled: true, totp_secret: { $exists: true } });
-    let count = 0;
-    for (const user of usersWithTotp) {
-      if (!user.totp_secret.includes(':')) {
-        // Noch Plaintext → verschlüsseln
-        const encrypted = encryptTotpSecret(user.totp_secret);
-        await users.updateAsync({ _id: user._id }, { $set: { totp_secret: encrypted } });
-        count++;
-      }
-    }
-    if (count > 0) {
-      console.log(`✓ TOTP-Migration: ${count} Secret(s) verschlüsselt`);
-    }
-  } catch (err) {
-    console.error('Warnung: TOTP-Secret-Migration fehlgeschlagen:', err.message);
-  }
-}
-
-async function migratePasswordFields() {
-  try {
-    const result = await users.updateAsync(
-      { password_changed_at: { $exists: false }, must_change_password: { $exists: false } },
-      { $set: { must_change_password: true } },
-      { multi: true }
-    );
-    if (result > 0) {
-      console.log(`✓ Migration: ${result} Benutzer müssen ihr Passwort beim nächsten Login ändern`);
-    }
-  } catch (err) {
-    console.error('Warnung: Migration der Passwort-Felder fehlgeschlagen:', err.message);
-  }
-}
-
-// ── D4: Daten-Retention (Art. 5 Abs. 1 lit. e DSGVO) ──────────────────────────
-async function runRetentionJob() {
-  const now = Date.now();
-  const twelveMonthsAgo = new Date(now - 365 * 24 * 60 * 60 * 1000).toISOString();
-  const twentyFourMonthsAgo = new Date(now - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
-
-  try {
-    const deletedLogs = await activityLog.removeAsync(
-      { created_at: { $lt: twelveMonthsAgo } },
-      { multi: true }
-    );
-    const deletedMessages = await messages.removeAsync(
-      { read: true, created_at: { $lt: twentyFourMonthsAgo } },
-      { multi: true }
-    );
-    if (deletedLogs > 0 || deletedMessages > 0) {
-      console.log(`✓ Retention: ${deletedLogs} Activity-Logs, ${deletedMessages} Nachrichten gelöscht`);
-    }
-  } catch (err) {
-    console.error('Retention-Job Fehler:', err.message);
-  }
-}
-
-// Täglich um 03:00 Uhr (24h in ms)
-const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-Promise.all([seedAdmin(), seedSettings(), migratePasswordFields(), migrateTotpSecrets()]).then(() => {
-  // D4: Retention-Job beim Start und dann täglich
-  runRetentionJob();
-  setInterval(runRetentionJob, RETENTION_INTERVAL_MS);
-
-  const server = app.listen(PORT, () => {
-    console.log(`\nKundenportal läuft auf http://localhost:${PORT}`);
-    console.log('Zum Beenden: Strg+C\n');
-  });
-
-  server.on('error', err => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`\nFEHLER: Port ${PORT} ist bereits belegt!`);
-      console.error(`Bitte andere Anwendung auf Port ${PORT} beenden oder PORT in .env ändern.\n`);
-    } else {
-      console.error('\nServer-Fehler:', err.message);
-    }
-    process.exit(1);
-  });
-});
+(async () => {
+  await seedAdmin();
+  await seedSettings();
+  app.listen(PORT, () => console.log('\nSchadenportal laeuft auf http://localhost:' + PORT + '\n'));
+})();
