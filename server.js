@@ -40,19 +40,12 @@ app.use((req, res, next) => {
   next();
 });
 
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+fs.mkdirSync(DATA_DIR, { recursive: true });
+
 // ── Session ───────────────────────────────────────────────────────────────────
-let sessionStore;
-if (process.env.REDIS_URL) {
-  const { createClient } = require('redis');
-  const RedisStore = require('connect-redis').default;
-  const redisClient = createClient({ url: process.env.REDIS_URL });
-  redisClient.connect().catch(console.error);
-  sessionStore = new RedisStore({ client: redisClient });
-} else {
-  const FileStore = require('session-file-store')(session);
-  const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-  sessionStore = new FileStore({ path: path.join(DATA_DIR, 'sessions'), ttl: 28800, retries: 0 });
-}
+const FileStore = require('session-file-store')(session);
+const sessionStore = new FileStore({ path: path.join(DATA_DIR, 'sessions'), ttl: 28800, retries: 0 });
 app.use(session({
   store: sessionStore,
   secret: process.env.SESSION_SECRET || 'change-me-in-production',
