@@ -33,9 +33,6 @@ async function getNextCaseNumber() {
 }
 
 async function seedAdmin() {
-  const existing = await users.findOneAsync({ role: 'admin' });
-  if (existing) return;
-
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@schindelhauer.de';
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword) {
@@ -43,18 +40,24 @@ async function seedAdmin() {
     process.exit(1);
   }
   const hash = await bcrypt.hash(adminPassword, 12);
-  await users.insertAsync({
-    email: adminEmail,
-    password_hash: hash,
-    full_name: 'Felix Schindelhauer',
-    phone: '',
-    mobile: '',
-    role: 'admin',
-    notification_preference: 'email',
-    must_change_password: true,
-    created_at: new Date().toISOString()
-  });
-  console.log(`\n✓ Admin-Account angelegt: ${adminEmail}\n`);
+  const existing = await users.findOneAsync({ role: 'admin' });
+  if (existing) {
+    await users.updateAsync({ role: 'admin' }, { $set: { email: adminEmail, password_hash: hash } });
+    console.log(`\n✓ Admin-Account aktualisiert: ${adminEmail}\n`);
+  } else {
+    await users.insertAsync({
+      email: adminEmail,
+      password_hash: hash,
+      full_name: 'Felix Schindelhauer',
+      phone: '',
+      mobile: '',
+      role: 'admin',
+      notification_preference: 'email',
+      must_change_password: false,
+      created_at: new Date().toISOString()
+    });
+    console.log(`\n✓ Admin-Account angelegt: ${adminEmail}\n`);
+  }
 }
 
 async function seedSettings() {
