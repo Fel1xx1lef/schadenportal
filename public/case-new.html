@@ -293,7 +293,7 @@
   function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   async function api(url, opts = {}) {
-    const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) }, ...opts });
+    const res = await fetch(url, { credentials: 'same-origin', ...opts, headers: { 'X-Requested-With': 'XMLHttpRequest', ...(opts.headers || {}) } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || res.status);
     return data;
